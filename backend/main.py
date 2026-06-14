@@ -1,149 +1,118 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
 from datetime import date
-from database import get_db_connected
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+from database import get_db
+from models import Mission as DBMission, TelemetryLog, Scientist
 import random 
 
 app=FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-class Mission(BaseModel):
+class MissionCreate(BaseModel):
     name:str
     target_destination:str
     launch_date: Optional[date]=None
+
+class ScientistResponse(BaseModel):
+    id:int
+    name:str
+    role:str
+    specialty:str
+    email:str
+    mission_id:Optional[int]
+    bio:Optional[str]
+
+    class Config:
+        from_attributes=True
+
 
 @app.get("/")
 def read_root():
     return {"message": "Space Exploration API is online."}
 
 @app.get("/test-db")
-def test_database():
-    conn=get_db_connected()
-    if conn and conn.is_connected():
-        conn.close()
-        return {"status": "Success", "message":"Connected to MySQL space-exploration database."}
-    else:
-        raise HTTPException(status_code=500, detail="database connection failed.")
+def test_database(db: Session=Depends(get_db)):
+   try:
+       db.execute(text("SELECT 1"))
+       return {"status":"Success","message":"Connected to Mysql database."}
+   except:
+       raise HTTPException(status_code=500, detail="DB connection failed")
 
 @app.get("/missions")
-def get_all_missions():
-    conn=get_db_connected()
-    if not conn:
-        raise HTTPException(status_code=500, detail="database connection failed.")
-    
-    cursor=conn.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM missions;")
-    missions_data=cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return {"missions": missions_data}
+def get_all_missions(db: Session=Depends(get_db)):
+    missions=db.query(DBMission).all()
+    return {"missions": missions}
 
 @app.get("/missions/{mission_id}")
-def get_mission(mission_id:int):
-    conn=get_db_connected()
-    if not conn:
-        raise HTTPException(status_code=500, detail="database connection failed.")
-    cursor=conn.cursor(dictionary=True)
-    sql="SELECT * FROM missions WHERE id= %s;"
-    cursor.execute(sql,(mission_id,))
-    mission=cursor.fetchone()
-    cursor.close()
-    conn.close()
+def get_mission(mission_id:int,db: Session=Depends(get_db)):
+    mission=db.query(DBMission).filter(DBMission.id == mission.id).first()
     if not mission:
-        raise HTTPException(status_code=404, detail="Mission not found.")
+        raise HTTPException(status_code=404,detail="Mission not found.")
     return mission
 
-
 @app.post("/missions")
-def create_mission(mission: Mission):
-    conn=get_db_connected()
-    if not conn:
-        raise HTTPException(status_code=500, detail="database connection failed.")
-    
-    cursor=conn.cursor()
-    sql="INSERT INTO missions (name, target_destination, launch_date) VALUES (%s,%s,%s)"
-    values=(mission.name,mission.target_destination,mission.launch_date)
+def create_mission(mission: MissionCreate,db: Session=Depends(get_db)):
+    new_mission=DBMission(
+        name=mission.name,
+        target_destiniation=mission.target_destination,
+        launch_date=mission.launch_date
+    )
+    db.add(new_mission)
     try:
-        cursor.execute(sql,values)
-        conn.commit()
-        new_id=cursor.lastrowid
-        return{"message": "Mission created successfully.", "mission_id": new_id}
+        db.commit()
+        db.refresh(new_mission)
+        return{"message":"Mission Created Successfully","mission_id":new_mission.id}
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500,detail=str(e))
-    finally:
-        cursor.close()
-        conn.close()
 
 @app.put("/missions/{mission_id}")
-def update_mission(mission_id:int, mission: Mission):
-    conn=get_db_connected()
-    if not conn:
-        raise HTTPException(status_code=500, detail="database connection failed.")
-    cursor=conn.cursor()
-    sql="UPDATE missions SET name=%s, target_destination=%s, launch_date=%s WHERE id=%s"
-    values=(mission.name, mission.target_destination, mission.launch_date, mission_id)
+def update_mission(mission_id:int, mission: MissionCreate,db: Session=Depends(get_db)):
+    db_mission=db.query(DBMission).filter(DBMission.id == mission_id).first()
+    if not db_mission:
+        raise HTTPException(status_code=404,detail="Mission not found")
+    db_mission.name=mission.name
+    db_mission.target_destination=mission.target_destination
+    db_mission.launch_date=mission.launch_date
+
     try:
-        cursor.execute(sql,values)
-        conn.commit()
-        rows_affected=cursor.rowcount
+        db.commit()
+        return{"message":f"Mission with {mission_id} updated successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        cursor.close()
-        conn.close()  
-    if rows_affected==0:
-        return {"message":"Mission received, but no text was change."}
-    return {"message": f"Mission with id {mission_id} updated successfully."}  
+        db.rollback()
+        raise HTTPException(status_code=500,detail=str(e))
 
 @app.delete("/missions/{mission_id}")
-def delete_mission(mission_id:int):
-    conn=get_db_connected()
-    if not conn:
-        raise HTTPException(status_code=500, detail="database connection failed.")
-    cursor=conn.cursor()
-    sql="DELETE FROM missions WHERE id=%s"
-
+def delete_mission(mission_id:int,db: Session=Depends(get_db)):
+    db_mission= db.query(DBMission).filter(DBMission.id == mission_id).first()
+    if not db_mission:
+        raise HTTPException(status_code=404,detail="Mission not found")
     try:
-        cursor.execute(sql,(mission_id,))
-        conn.commit()
-        if cursor.rowcount==0:
-            raise HTTPException(status_code=404, detail="Mission not found.")
-        return{"message": f"Mission with id {mission_id} deleted successfully."}
+        db.delete(db_mission)
+        db.commit()
+        return{"message":f"Mission with id {mission_id} is Deleted successfully"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        cursor.close()
-        conn.close()  
+        db.rollback()
+        raise HTTPException(status_code=500,detail=str(e))
           
 @app.get("/missions/{mission_id}/telemetry")
-def get_telemetry(mission_id:int):
-    conn=get_db_connected()
-    if not conn:
-        raise HTTPException(status_code=500, detail="database connection failed.")
-    
-    cursor=conn.cursor(dictionary=True)
-    sql="SELECT * FROM telemetry_logs WHERE mission_id=%s ORDER BY timestamp DESC LIMIT 10;"
-    cursor.execute(sql,(mission_id,))
-    telemetry_data=cursor.fetchall()
-    cursor.close()
-    conn.close()
-    return {"telemetry": telemetry_data}
+def get_telemetry(mission_id:int,db: Session = Depends(get_db)):
+    telemetry_data=db.query(TelemetryLog).filter(TelemetryLog.mission_id==mission_id).order_by(TelemetryLog.timestamp.desc()).limit(10).all()
+    return {"telemetry":telemetry_data}
 
 @app.post("/missions/{mission_id}/telemetry/simulate")
-def simulate_telemetry(mission_id:int):
-    conn=get_db_connected()
-    if not conn:
-        raise HTTPException(status_code=500, detail="database connection failed.")
-    
+def simulate_telemetry(mission_id:int,db: Session = Depends(get_db)):
     parameters=[
         {"name": "Fuel Level (%)", "min": 5, "max": 100},
         {"name": "Velocity (km/h)", "min": 15000, "max": 28000},
@@ -157,15 +126,21 @@ def simulate_telemetry(mission_id:int):
     elif param["name"]=="Oxygen Pressure (psi)" and val<12:
         status="Warning"
 
-    cursor=conn.cursor()
-    sql="INSERT INTO telemetry_logs (mission_id, parameter_name, parameter_value, status_level) VALUES (%s,%s,%s,%s)"
-    values=(mission_id, param["name"], val, status)
+    new_log=TelemetryLog(
+        mission_id=mission_id,
+        parameter_name=param["name"],
+        parameter_value=val,
+        status_level=status
+    )
+    db.add(new_log)
     try:
-        cursor.execute(sql,values)
-        conn.commit()
+        db.commit()
         return {"message": "Telemetry ping successful", "sensor": param["name"], "value": val, "status": status}
     except Exception as e:
+        db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-    finally:
-        cursor.close()
-        conn.close()
+    
+@app.get("/missions/{mission_id}/crew",response_model=list[ScientistResponse])
+def get_mission_crew(mission_id:int,db:Session=Depends(get_db)):
+    crew=db.query(Scientist).filter(Scientist.mission_id==mission_id).all()
+    return crew

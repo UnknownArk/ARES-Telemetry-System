@@ -1,17 +1,19 @@
-import mysql.connector
-from mysql.connector import Error
+import os
+from dotenv import load_dotenv 
+from sqlalchemy import create_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
 
-def get_db_connected():
+load_dotenv()
+db_password= os.getenv("DB_PASSWORD")
+SQLALCHEMY_DATABASE_URL=f"mysql+mysqlconnector://root:{db_password}@127.0.0.1/space_exploration"
+
+engine=create_engine(SQLALCHEMY_DATABASE_URL)
+SessionLocal=sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base=declarative_base()
+
+def get_db():
+    db= SessionLocal()
     try:
-        connection= mysql.connector.connect(
-            host='localhost',
-            user='root',
-            password='root123',
-            database='space_exploration'
-        )
-        if connection.is_connected():
-            return connection
-    except Error as e:
-        print(f"Error connecting to MYSQL: {e}")
-        return None
-    
+        yield db
+    finally:
+        db.close()

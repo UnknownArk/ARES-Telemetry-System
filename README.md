@@ -106,7 +106,16 @@ sequenceDiagram
 4. Open the provided localhost URL in your browser.
 
 ---
+
+## Project Roadmap (What's Next)
+This repository currently represents the **Base Version (v1.0)** of the application, focusing heavily on establishing a rock-solid, full-stack architecture. 
+
+**Future feature rollouts currently in development:**
+* [ ] **Phase 2:** Implementing the "Crew Manifest" with the `Scientists` database table to demonstrate complex parent-child SQL relationships.
+* [ ] **Phase 3:** Upgrading the frontend UI/UX with Tailwind CSS for a highly polished, cinematic aesthetic.
+* [ ] **Phase 4:** Migrating the local database and backend to cloud hosting (Render/AWS) and deploying the frontend to Vercel for public access.
+---
 ## Contact
 **Pradnesh R.**
 * Email: pradnesh.r1@gmail.com
-* LinkedIn: https://www.linkedin.com/pradnesh-r/
+* LinkedIn: https://www.linkedin.com/in/pradnesh-r/

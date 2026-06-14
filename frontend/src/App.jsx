@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import CrewManifest from './CrewManifest';
 
 function App() {
   const [missions, setMissions] = useState([]);
@@ -169,6 +170,7 @@ function App() {
                   )}
                 </div>
               )}
+              <CrewManifest missionId={mission.id} />
             </div>
           ))
         )}
