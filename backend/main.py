@@ -36,6 +36,13 @@ class ScientistResponse(BaseModel):
     class Config:
         from_attributes=True
 
+class ScientistCreate(BaseModel):
+    name:str
+    role:str
+    specialty:str
+    email:str
+    bio: Optional[str]=None
+
 
 @app.get("/")
 def read_root():
@@ -50,8 +57,12 @@ def test_database(db: Session=Depends(get_db)):
        raise HTTPException(status_code=500, detail="DB connection failed")
 
 @app.get("/missions")
-def get_all_missions(db: Session=Depends(get_db)):
-    missions=db.query(DBMission).all()
+def get_all_missions(search: Optional[str]=None,db: Session=Depends(get_db)):
+    query=db.query(DBMission)
+    if search:
+        query=query.filter(DBMission.name.ilike(f"%{search}%"))
+
+    missions=query.all()
     return {"missions": missions}
 
 @app.get("/missions/{mission_id}")
@@ -144,3 +155,21 @@ def simulate_telemetry(mission_id:int,db: Session = Depends(get_db)):
 def get_mission_crew(mission_id:int,db:Session=Depends(get_db)):
     crew=db.query(Scientist).filter(Scientist.mission_id==mission_id).all()
     return crew
+
+@app.post("/missions/{mission_id}/crew")
+def add_crew_member(mission_id:int, scientist: ScientistCreate, db: Session=Depends(get_db)):
+    new_scientist=Scientist(
+        name=scientist.name,
+        role=scientist.role,
+        specialty=scientist.specialty,
+        email=scientist.email,
+        bio=scientist.bio,
+        mission_id=mission_id
+    )
+    db.add(new_scientist)
+    try:
+        db.commit()
+        return{"message":f"Successfully assigned {scientist.name} to mission: {mission_id}"}
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500,detail="Error saving Crew Member: "+str(e))
