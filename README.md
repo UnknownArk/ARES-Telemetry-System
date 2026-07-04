@@ -1,119 +1,133 @@
-# Space Command Dashboard
+# A.R.E.S. Command (Autonomous Relay & Exploration System)
 
-A full-stack mission control center built to track spacecraft, manage flight crews, and stream live, simulated telemetry data. This project demonstrates a complete end-to-end architecture, from structuring a secure relational database to building a Python REST API and designing a React interface for real-time state management.
+![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)
+![Postgres](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
+![Gemini](https://img.shields.io/badge/Gemini%202.5%20Flash-8E75B2?style=for-the-badge&logo=google&logoColor=white)
 
-## Tech Stack
-* **Frontend:** React.js, Vite, Axios
-* **Backend:** Python, FastAPI, Uvicorn
-* **Database:** MySQL
-
-## Core Features
-* **Live Telemetry Stream:** Simulates real-time sensor readings (Fuel, Velocity, Oxygen), calculates danger levels on the backend, and streams them to a React interface.
-* **Mission Control:** Full CRUD functionality to launch new missions, update active targets, and delete aborted flights.
-* **Crew Manifest:** Assign scientists and specialists to specific missions, demonstrating complex parent-child database relationships.
-* **Data Integrity:** Engineered with strict MySQL relational constraints and robust backend error handling to ensure database stability.
+A full-stack, fault-tolerant telemetry dashboard designed to ingest, buffer, and analyze high-frequency satellite data using a dual-tier database architecture and Generative AI.
 
 ---
 
-## System Architecture & Data Flow
+## 📖 Table of Contents
+- [Project Overview](#-project-overview)
+- [Key Features & Architecture](#-key-features--architecture)
+- [Tech Stack](#-tech-stack)
+- [Local Installation](#-local-installation)
+- [System Architecture Flow](#-system-architecture-flow)
+- [API Documentation](#-api-documentation)
 
-### 1. Database Entity-Relationship Diagram (ERD)
-The database enforces strict relational integrity. Both telemetry logs and scientists are tied to active missions via Foreign Key constraints.
+---
 
-```mermaid
-erDiagram
-    MISSIONS {
-        int id PK
-        varchar name
-        varchar target_destination
-        date launch_date
-    }
-    TELEMETRY_LOGS {
-        int id PK
-        int mission_id FK
-        varchar parameter_name
-        float parameter_value
-        varchar status_level
-        datetime timestamp
-    }
-    SCIENTISTS {
-        int id PK
-        int mission_id FK
-        varchar full_name
-        varchar specialty
-        varchar clearance_level
-    }
-    
-    MISSIONS ||--o{ TELEMETRY_LOGS : "generates"
-    MISSIONS ||--o{ SCIENTISTS : "employs"
+## 🚀 Project Overview
+
+Standard web applications rely on direct CRUD operations, which fail under the stress of high-frequency data streams (like live satellite telemetry). **A.R.E.S.** solves this by implementing an enterprise-grade ingestion pipeline. Instead of locking a relational database with rapid inserts, telemetry is captured instantly in an in-memory Redis cache and later flushed to PostgreSQL via batched writes.
+
+Furthermore, the system integrates a custom fault-tolerant polling engine and the Google Gemini API to translate raw orbital mechanics into human-readable diagnostic briefs.
+
+---
+
+## ⚡ Key Features & Architecture
+
+* **High-Frequency Ingestion Pipeline:** Utilizes **Redis** as an in-memory buffer to capture high-speed telemetry streams, bypassing standard relational database bottlenecks.
+* **Batched Database Writes:** Implements a manual flush mechanism to move cached Redis data into **PostgreSQL** via optimized bulk mappings.
+* **Fault-Tolerant Network Polling:** Integrates with the live International Space Station (ISS) API. Includes a custom 15-second circuit-breaker and a simulated payload fail-safe to guarantee dashboard uptime even if the external satellite network collapses.
+* **AI Flight Director:** Leverages the **Gemini 2.5 Flash API** to dynamically analyze raw telemetry (altitude, velocity, coordinates) and generate live, actionable diagnostic reports for command staff.
+* **Secure Commander Access:** Protected routes using OAuth2 and JWT (JSON Web Tokens) to ensure only authorized personnel can trigger batched writes or AI analysis.
+* **Containerized Infrastructure:** The entire database and caching layer is virtualized using **Docker Compose**, ensuring zero-configuration deployment.
+
+---
+
+## 🛠️ Tech Stack
+
+**Frontend Subsystem:**
+* React.js (Vite Build System)
+* Tailwind CSS (UI/UX Styling)
+* Axios (HTTP Client)
+* React Query (State & Cache Management)
+
+**Backend Subsystem:**
+* Python & FastAPI
+* SQLAlchemy (ORM) & Pydantic (Data Validation)
+* Google GenAI SDK (`gemini-2.5-flash`)
+* PyJWT (Authentication)
+
+**Database & Infrastructure:**
+* PostgreSQL (Relational Data)
+* Redis (High-Speed Cache)
+* Docker Desktop (Container Orchestration)
+
+---
+
+## ⚙️ Local Installation
+
+### Prerequisites
+Before you begin, ensure you have the following installed:
+* [Docker Desktop](https://www.docker.com/products/docker-desktop)
+* [Node.js & npm](https://nodejs.org/)
+* [Python 3.10+](https://www.python.org/downloads/)
+
+### 1. Clone & Environment Setup
+Clone the repository and set up your environment variables.
+In the `backend` directory, create a `.env` file:
+```env
+ADMIN_USERNAME=commander
+ADMIN_PASSWORD=deepspace
+GEMINI_API_KEY=your_actual_api_key_here
 ```
 
-### 2. Live Telemetry Data Flow
-This sequence demonstrates how the application handles real-time sensor simulation and state updates across different network ports.
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant React as React Frontend
-    participant API as FastAPI Backend
-    participant DB as MySQL Database
-
-    User->>React: Clicks "Ping Ship"
-    React->>API: POST /missions/{id}/telemetry/simulate
-    Note over API: Engine generates random sensor data<br/>and calculates danger status.
-    API->>DB: INSERT INTO telemetry_logs
-    DB-->>API: Row Created
-    API-->>React: 200 OK (Simulation Complete)
-    
-    React->>API: GET /missions/{id}/telemetry
-    API->>DB: SELECT TOP 10 Logs (ORDER BY DESC)
-    DB-->>API: Raw SQL Data
-    API-->>React: JSON Array
-    React-->>User: UI updates dark-mode panel instantly
+### 2. Boot the Infrastructure (Docker)
+Ensure Docker Desktop is running, then spin up the PostgreSQL and Redis containers:
+```bash
+docker compose up -d
 ```
 
----
+### 3. Ignite the API (Backend)
+Navigate to the backend directory, activate your virtual environment, and start the FastAPI server:
+```bash
+cd backend
+python -m venv venv
+venv\Scripts\activate  # On Windows
+pip install -r requirements.txt
+uvicorn main:app --reload
+```
 
-## Local Setup Instructions
-
-### 1. Database Configuration
-1. Ensure MySQL is installed and running locally.
-2. Create a new database named `space_exploration`.
-3. Execute the SQL commands to create the `missions`, `telemetry_logs`, and `scientists` tables.
-4. Update `database.py` with your local MySQL username and password.
-
-### 2. Backend Initialization
-1. Open a terminal in the backend directory.
-2. Install dependencies: 
-   ```bash
-   pip install fastapi uvicorn mysql-connector-python pydantic
-   ```
-3. Start the server: 
-   ```bash
-   uvicorn main:app --reload
-   ```
-
-### 3. Frontend Initialization
-1. Open a new terminal in the frontend directory.
-2. Install dependencies: 
-   ```bash
-   npm install
-   ```
-3. Run the development server: 
-   ```bash
-   npm run dev
-   ```
-4. Open the provided localhost URL in your browser.
+### 4. Launch the Dashboard (Frontend)
+Open a new terminal, navigate to the frontend directory, and start the React app:
+```bash
+cd frontend
+npm install
+npm run dev
+```
+Navigate to `http://localhost:5173` in your browser.
 
 ---
 
-## Project Roadmap (What's Next)
-This repository currently represents the **Base Version (v1.0)** of the application, focusing heavily on establishing a rock-solid, full-stack architecture. 
+## 🔄 System Architecture Flow
 
-**Future feature rollouts currently in development:**
-* [ ] **Phase 2:** Implementing the "Crew Manifest" with the `Scientists` database table to demonstrate complex parent-child SQL relationships.
-* [ ] **Phase 3:** Upgrading the frontend UI/UX with Tailwind CSS for a highly polished, cinematic aesthetic.
-* [ ] **Phase 4:** Migrating the local database and backend to cloud hosting (Render/AWS) and deploying the frontend to Vercel for public access.
+1. **Ping:** User clicks "Ping Ship". Frontend fetches live ISS data and pushes it to the `POST /telemetry/stream` route.
+2. **Buffer:** FastAPI receives the JSON payload and pushes it into the Redis memory list `telemetry_buffer` (Time Complexity: O(1)).
+3. **Flush:** User clicks "Flush to Postgres". FastAPI reads the Redis queue, clears it, and executes a `bulk_insert_mappings` command to PostgreSQL.
+4. **Analyze:** User clicks "Generate Status Brief". FastAPI pulls the latest coordinates, injects them into a highly specific LLM prompt, and returns the Gemini AI response to the UI.
+
+---
+
+## 📡 Core API Routes
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| `POST` | `/login` | Returns JWT Bearer token | No |
+| `GET`  | `/live/iss/telemetry` | Fetches live or simulated ISS coordinates | No |
+| `POST` | `/telemetry/stream` | Pushes telemetry JSON to Redis buffer | Yes |
+| `POST` | `/telemetry/flush` | Batched write from Redis to PostgreSQL | Yes |
+| `POST` | `/live/iss/analyze` | Generates AI diagnostic report via Gemini | Yes |
+| `GET`  | `/missions` | Retrieves all registered missions | No |
+| `POST` | `/missions` | Initializes a new mission | Yes |
+
+---
+*Built as a demonstration of high-throughput system design and API fail-safes.*
 ---
 ## Contact
 **Pradnesh R.**
