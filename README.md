@@ -21,7 +21,7 @@ A full-stack, fault-tolerant telemetry dashboard designed to ingest, buffer, and
 
 ---
 
-## 🚀 Project Overview
+## Project Overview
 
 Standard web applications rely on direct CRUD operations, which fail under the stress of high-frequency data streams (like live satellite telemetry). **A.R.E.S.** solves this by implementing an enterprise-grade ingestion pipeline. Instead of locking a relational database with rapid inserts, telemetry is captured instantly in an in-memory Redis cache and later flushed to PostgreSQL via batched writes.
 
@@ -29,7 +29,7 @@ Furthermore, the system integrates a custom fault-tolerant polling engine and th
 
 ---
 
-## ⚡ Key Features & Architecture
+## Key Features & Architecture
 
 * **High-Frequency Ingestion Pipeline:** Utilizes **Redis** as an in-memory buffer to capture high-speed telemetry streams, bypassing standard relational database bottlenecks.
 * **Batched Database Writes:** Implements a manual flush mechanism to move cached Redis data into **PostgreSQL** via optimized bulk mappings.
@@ -40,7 +40,7 @@ Furthermore, the system integrates a custom fault-tolerant polling engine and th
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 **Frontend Subsystem:**
 * React.js (Vite Build System)
@@ -61,7 +61,7 @@ Furthermore, the system integrates a custom fault-tolerant polling engine and th
 
 ---
 
-## ⚙️ Local Installation
+## Local Installation
 
 ### Prerequisites
 Before you begin, ensure you have the following installed:
@@ -105,7 +105,7 @@ Navigate to `http://localhost:5173` in your browser.
 
 ---
 
-## 🔄 System Architecture Flow
+## System Architecture Flow
 
 1. **Ping:** User clicks "Ping Ship". Frontend fetches live ISS data and pushes it to the `POST /telemetry/stream` route.
 2. **Buffer:** FastAPI receives the JSON payload and pushes it into the Redis memory list `telemetry_buffer` (Time Complexity: O(1)).
