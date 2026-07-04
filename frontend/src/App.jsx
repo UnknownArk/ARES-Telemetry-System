@@ -29,12 +29,14 @@ function App() {
   const [date, setDate] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
-  
+
   // --- TELEMETRY & AI STATE ---
   const [activeTelemetryId, setActiveTelemetryId] = useState(null);
   const [telemetryLogs, setTelemetryLogs] = useState([]);
   const [aiReport, setAiReport] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isPinging, setIsPinging] = useState(false);
+  const [isFlushing, setIsFlushing] = useState(false);
 
   // --- DATABASE ENGINES ---
   const { data: missions=[], isLoading, isError } = useQuery({
@@ -132,14 +134,38 @@ function App() {
     }
   };
 
-  // UPDATED TO HIT THE LIVE ISS /fetch ROUTE
+  // UPDATED TO HIT THE LIVE ISS TELEMETRY ENDPOINT AND BUFFER TO REDIS
   const triggerPing = async (id) => {
+    setIsPinging(true);
     try {
-      await axios.post(`http://127.0.0.1:8000/missions/${id}/telemetry/fetch`);
-      const response = await axios.get(`http://127.0.0.1:8000/missions/${id}/telemetry`);
-      setTelemetryLogs(response.data.telemetry || []);
+      const issRes = await axios.get(`http://127.0.0.1:8000/live/iss/telemetry`);
+
+      const payload = {
+        mission_id: id,
+        parameter_name: "velocity",
+        parameter_value: issRes.data.velocity_kmh
+      };
+      
+      await axios.post(`http://127.0.0.1:8000/telemetry/stream`, payload);
+      toast.success(`Velocity ${payload.parameter_value} km/h buffered to Redis`, { icon: '⚡' });
+      
     } catch (err) {
       toast.error("Unauthorized: Only commanders can ping the ship.");
+    } finally {
+      setIsPinging(false);
+    }
+  };
+  const flushTelemetry = async () => {
+    setIsFlushing(true);
+    try {
+      const res = await axios.post(`http://127.0.0.1:8000/telemetry/flush`);
+      toast.success(res.data.message, { icon: '💾' });
+      
+      if (activeTelemetryId) loadTelemetry(activeTelemetryId); 
+    } catch (err) {
+      toast.error("Failed to flush buffer to Postgres.");
+    } finally {
+      setIsFlushing(false);
     }
   };
 
@@ -147,10 +173,10 @@ function App() {
     setIsAnalyzing(true);
     setAiReport("");
     try {
-      const response = await axios.post(`http://127.0.0.1:8000/missions/${id}/analyze`);
+      const response = await axios.post(`http://127.0.0.1:8000/live/iss/analyze`);
       setAiReport(response.data.report);
     } catch (err) {
-      toast.error("AI Analysis failed. Verify Commander clearance and API constraints.");
+      toast.error("AI Analysis failed. Verify Commander clearance.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -274,9 +300,22 @@ function App() {
                     <div className="flex justify-between items-center border-b border-slate-700 pb-3 mb-3">
                       <h3 className="text-lg font-bold m-0 text-cyan-400">🛰️ Live Sensor Feed</h3>
                       {token && (
-                        <button onClick={() => triggerPing(mission.id)} className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white font-bold rounded transition duration-200">
-                          Ping Ship
-                        </button>
+                        <div className="flex gap-2">
+                          <button 
+                            onClick={() => triggerPing(mission.id)} 
+                            disabled={isPinging}
+                            className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded transition duration-200 shadow-lg"
+                          >
+                            {isPinging ? 'Pinging...' : 'Ping Ship (Redis)'}
+                          </button>
+                          <button 
+                            onClick={flushTelemetry} 
+                            disabled={isFlushing}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-slate-900 font-bold rounded transition duration-200 shadow-lg"
+                          >
+                            {isFlushing ? 'Flushing...' : 'Flush to Postgres'}
+                          </button>
+                        </div>
                       )}
                     </div>
                     
@@ -324,7 +363,7 @@ function App() {
                 )}
                 
                 <CrewManifest missionId={mission.id} />
-                
+               
               </div>
             ))
           )}

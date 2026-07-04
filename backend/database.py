@@ -5,7 +5,7 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 
 load_dotenv()
 db_password= os.getenv("DB_PASSWORD")
-SQLALCHEMY_DATABASE_URL=f"mysql+mysqlconnector://root:{db_password}@127.0.0.1/space_exploration"
+SQLALCHEMY_DATABASE_URL=f"postgresql://admin:{db_password}@localhost/ares_db"
 
 engine=create_engine(SQLALCHEMY_DATABASE_URL)
 SessionLocal=sessionmaker(autocommit=False, autoflush=False, bind=engine)
