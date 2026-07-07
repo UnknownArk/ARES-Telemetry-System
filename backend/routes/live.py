@@ -5,22 +5,25 @@ from services import redis_client, gemini_client
 
 router = APIRouter()
 
+
 # --- Live ISS Tracking ---
 @router.get("/live/iss/telemetry")
 def fetch_live_iss():
     try:
-        response= requests.get("https://api.wheretheiss.at/v1/satellites/25544", timeout=15)
+        response = requests.get(
+            "https://api.wheretheiss.at/v1/satellites/25544", timeout=15
+        )
         response.raise_for_status()
-        data=response.json()
+        data = response.json()
         return {
             "target": "ISS",
-            "altitude_km": round(data["altitude"],2),
+            "altitude_km": round(data["altitude"], 2),
             "velocity_kmh": round(data["velocity"], 2),
             "latitude": round(data["latitude"], 4),
             "longitude": round(data["longitude"], 4),
-            "status": "LIVE"
+            "status": "LIVE",
         }
-    except requests.exceptions.RequestException as e: 
+    except requests.exceptions.RequestException as e:
         print(f"System Warning: Live API offline ({e}). Engaging Fail-Safe telemetry.")
         return {
             "target": "ISS",
@@ -28,39 +31,40 @@ def fetch_live_iss():
             "velocity_kmh": 27580.2,
             "latitude": 28.5721,
             "longitude": -80.6480,
-            "status": "SIMULATED (LIVE OFFLINE)"
+            "status": "SIMULATED (LIVE OFFLINE)",
         }
+
 
 # --- AI Flight Director ---
 @router.post("/live/iss/analyze")
 def analyze_live_iss(admin: dict = Depends(verify_admin)):
     if not redis_client:
         raise HTTPException(status_code=500, detail="Redis cache unavailable.")
-    #check cache first
-    cached_report= redis_client.get("mission:iss:ai_report")
+    # check cache first
+    cached_report = redis_client.get("mission:iss:ai_report")
     if cached_report:
         print("System: Redis Cache HIT. Routing saved response.")
-        return{"report": cached_report, "cached": True}
+        return {"report": cached_report, "cached": True}
     print("System: Redis Cache Miss. Querying Gemini API...")
 
-    telemetry= fetch_live_iss()
+    telemetry = fetch_live_iss()
     prompt = f"""
     You are the AI Flight Director for A.R.E.S. 
     Analyze this live telemetry for the International Space Station:
-    Altitude: {telemetry['altitude_km']} km
-    Velocity: {telemetry['velocity_kmh']} km/h
-    Location: Lat {telemetry['latitude']}, Lon {telemetry['longitude']}
+    Altitude: {telemetry["altitude_km"]} km
+    Velocity: {telemetry["velocity_kmh"]} km/h
+    Location: Lat {telemetry["latitude"]}, Lon {telemetry["longitude"]}
     
     Provide a concise, 2-paragraph diagnostic report in Markdown. 
     End with [STATUS: NOMINAL] or [STATUS: WARNING].
     """
-    
+
     try:
         response = gemini_client.models.generate_content(
-            model='gemini-2.5-flash',
+            model="gemini-2.5-flash",
             contents=prompt,
         )
-        redis_client.setex("mission:iss:ai_report",900,response.text) #900=15 min
+        redis_client.setex("mission:iss:ai_report", 900, response.text)  # 900=15 min
         return {"report": response.text, "cached": False}
     except Exception as e:
         print(f"--- AI EXECUTION FAILURE ---\n{str(e)}\n----------------------")

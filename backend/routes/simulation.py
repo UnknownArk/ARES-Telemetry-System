@@ -10,23 +10,31 @@ from models import TelemetryLog
 
 router = APIRouter()
 
+
 class TelemetryPayload(BaseModel):
     mission_id: int
     parameter_name: str
     parameter_value: float
 
-#-- high freq pipelines --
+
+# -- high freq pipelines --
+
 
 @router.post("/telemetry/stream")
-def ingest_telemetry_stream(payload: TelemetryPayload, admin: dict = Depends(verify_admin)):
+def ingest_telemetry_stream(
+    payload: TelemetryPayload, admin: dict = Depends(verify_admin)
+):
     if not redis_client:
         raise HTTPException(status_code=500, detail="Redis offline.")
 
     redis_client.rpush("telemetry_buffer", json.dumps(payload.dict()))
     return {"status": "buffered in memory"}
 
+
 @router.post("/telemetry/flush")
-def flush_telemetry_buffer(db: Session = Depends(get_db), admin: dict = Depends(verify_admin)):
+def flush_telemetry_buffer(
+    db: Session = Depends(get_db), admin: dict = Depends(verify_admin)
+):
     if not redis_client:
         raise HTTPException(status_code=500, detail="Redis offline.")
 
@@ -42,11 +50,13 @@ def flush_telemetry_buffer(db: Session = Depends(get_db), admin: dict = Depends(
     mappings = []
     for item in raw_data:
         data = json.loads(item)
-        mappings.append({
-            "mission_id": data["mission_id"],
-            "parameter_name": data["parameter_name"],
-            "parameter_value": data["parameter_value"]
-        })
+        mappings.append(
+            {
+                "mission_id": data["mission_id"],
+                "parameter_name": data["parameter_name"],
+                "parameter_value": data["parameter_value"],
+            }
+        )
 
     try:
         db.bulk_insert_mappings(TelemetryLog, mappings)

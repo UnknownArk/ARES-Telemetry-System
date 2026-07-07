@@ -12,6 +12,7 @@ env/
 
 # Environment Variables 
 .env
+.agents/
 
 # OS Generated Files
 .DS_Store

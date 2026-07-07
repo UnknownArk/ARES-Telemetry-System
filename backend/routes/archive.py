@@ -9,12 +9,14 @@ from datetime import date
 
 router = APIRouter()
 
+
 # --- PYDANTIC SCHEMAS ---
 class MissionCreate(BaseModel):
     name: str
     target_destination: str
-    spacecraft_id: Optional[int]= None
+    spacecraft_id: Optional[int] = None
     launch_date: Optional[date] = None
+
 
 class ScientistResponse(BaseModel):
     id: int
@@ -28,6 +30,7 @@ class ScientistResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
 class ScientistCreate(BaseModel):
     name: str
     role: str
@@ -35,23 +38,26 @@ class ScientistCreate(BaseModel):
     email: str
     bio: Optional[str] = None
 
+
 class AgencyCreate(BaseModel):
     name: str
     country: str
-    description: Optional[str]= None
+    description: Optional[str] = None
+
 
 class SpacecraftCreate(BaseModel):
     name: str
     classification: str
     agency_id: int
-    max_crew_capacity: int=0
+    max_crew_capacity: int = 0
 
 
-#----
+# ----
 # Mission DBs
-#----
+# ----
 
 # --- PUBLIC ROUTES ---
+
 
 @router.get("/missions")
 def get_all_missions(search: Optional[str] = None, db: Session = Depends(get_db)):
@@ -61,6 +67,7 @@ def get_all_missions(search: Optional[str] = None, db: Session = Depends(get_db)
     missions = query.all()
     return {"missions": missions}
 
+
 @router.get("/missions/{mission_id}")
 def get_mission(mission_id: int, db: Session = Depends(get_db)):
     mission = db.query(DBMission).filter(DBMission.id == mission_id).first()
@@ -68,34 +75,49 @@ def get_mission(mission_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Mission not found.")
     return mission
 
+
 @router.get("/missions/{mission_id}/telemetry")
 def get_telemetry(mission_id: int, db: Session = Depends(get_db)):
-    telemetry_data = db.query(TelemetryLog).filter(TelemetryLog.mission_id == mission_id).order_by(TelemetryLog.timestamp.desc()).limit(10).all()
+    telemetry_data = (
+        db.query(TelemetryLog)
+        .filter(TelemetryLog.mission_id == mission_id)
+        .order_by(TelemetryLog.timestamp.desc())
+        .limit(10)
+        .all()
+    )
     return {"telemetry": telemetry_data}
+
 
 @router.get("/missions/{mission_id}/crew", response_model=list[ScientistResponse])
 def get_mission_crew(mission_id: int, db: Session = Depends(get_db)):
     crew = db.query(Scientist).filter(Scientist.mission_id == mission_id).all()
     return crew
 
+
 @router.get("/agencies")
 def get_all_agencies(db: Session = Depends(get_db)):
     agencies = db.query(Agency).all()
     return {"agencies": agencies}
+
 
 @router.get("/spacecrafts")
 def get_all_spacecrafts(db: Session = Depends(get_db)):
     spacecrafts = db.query(Spacecraft).all()
     return {"spacecrafts": spacecrafts}
 
+
 # --- PROTECTED ADMIN ROUTES ---
 @router.post("/missions")
-def create_mission(mission: MissionCreate, db: Session = Depends(get_db), admin: dict = Depends(verify_admin)):
+def create_mission(
+    mission: MissionCreate,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(verify_admin),
+):
     new_mission = DBMission(
         name=mission.name,
         target_destination=mission.target_destination,
         spacecraft_id=mission.spacecraft_id,
-        launch_date=mission.launch_date
+        launch_date=mission.launch_date,
     )
     db.add(new_mission)
     try:
@@ -106,8 +128,14 @@ def create_mission(mission: MissionCreate, db: Session = Depends(get_db), admin:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.put("/missions/{mission_id}")
-def update_mission(mission_id: int, mission: MissionCreate, db: Session = Depends(get_db), admin: dict = Depends(verify_admin)):
+def update_mission(
+    mission_id: int,
+    mission: MissionCreate,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(verify_admin),
+):
     db_mission = db.query(DBMission).filter(DBMission.id == mission_id).first()
     if not db_mission:
         raise HTTPException(status_code=404, detail="Mission not found")
@@ -123,8 +151,11 @@ def update_mission(mission_id: int, mission: MissionCreate, db: Session = Depend
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.delete("/missions/{mission_id}")
-def delete_mission(mission_id: int, db: Session = Depends(get_db), admin: dict = Depends(verify_admin)):
+def delete_mission(
+    mission_id: int, db: Session = Depends(get_db), admin: dict = Depends(verify_admin)
+):
     db_mission = db.query(DBMission).filter(DBMission.id == mission_id).first()
     if not db_mission:
         raise HTTPException(status_code=404, detail="Mission not found")
@@ -136,53 +167,76 @@ def delete_mission(mission_id: int, db: Session = Depends(get_db), admin: dict =
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/missions/{mission_id}/crew")
-def add_crew_member(mission_id: int, scientist: ScientistCreate, db: Session = Depends(get_db), admin: dict = Depends(verify_admin)):
+def add_crew_member(
+    mission_id: int,
+    scientist: ScientistCreate,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(verify_admin),
+):
     new_scientist = Scientist(
         name=scientist.name,
         role=scientist.role,
         specialty=scientist.specialty,
         email=scientist.email,
         bio=scientist.bio,
-        mission_id=mission_id
+        mission_id=mission_id,
     )
     db.add(new_scientist)
     try:
         db.commit()
-        return {"message": f"Successfully assigned {scientist.name} to mission: {mission_id}"}
+        return {
+            "message": f"Successfully assigned {scientist.name} to mission: {mission_id}"
+        }
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Error saving Crew Member: " + str(e))
+        raise HTTPException(
+            status_code=500, detail="Error saving Crew Member: " + str(e)
+        )
+
 
 @router.post("/agencies")
-def create_agency(agency: AgencyCreate, db: Session= Depends(get_db), admin: dict= Depends(verify_admin)):
-    new_agency= Agency(
-        name= agency.name,
-        country=agency.country,
-        description= agency.description
+def create_agency(
+    agency: AgencyCreate,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(verify_admin),
+):
+    new_agency = Agency(
+        name=agency.name, country=agency.country, description=agency.description
     )
     db.add(new_agency)
     try:
         db.commit()
         db.refresh(new_agency)
-        return{"message": "Agency registered", "agency_id": new_agency.id}
+        return {"message": "Agency registered", "agency_id": new_agency.id}
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
-    
+
+
 @router.post("/spacecraft")
-def create_spacecraft(spacecraft: SpacecraftCreate, db: Session= Depends(get_db), admin: dict= Depends(verify_admin)):
-    new_spacecraft= Spacecraft(
+def create_spacecraft(
+    spacecraft: SpacecraftCreate,
+    db: Session = Depends(get_db),
+    admin: dict = Depends(verify_admin),
+):
+    new_spacecraft = Spacecraft(
         name=spacecraft.name,
         classification=spacecraft.classification,
         agency_id=spacecraft.agency_id,
-        max_crew_capacity=spacecraft.max_crew_capacity
+        max_crew_capacity=spacecraft.max_crew_capacity,
     )
     db.add(new_spacecraft)
     try:
         db.commit()
         db.refresh(new_spacecraft)
-        return{"message": "Spacecraft registered to fleet", "spacecraft_id": new_spacecraft.id}
+        return {
+            "message": "Spacecraft registered to fleet",
+            "spacecraft_id": new_spacecraft.id,
+        }
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Ensure the agency_id exists. "+str(e))
+        raise HTTPException(
+            status_code=500, detail="Ensure the agency_id exists. " + str(e)
+        )
