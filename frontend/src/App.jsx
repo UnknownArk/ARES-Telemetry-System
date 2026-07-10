@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import DashboardLayout from './components/DashboardLayout';
 import LiveTracking from './pages/LiveTracking';
 import MissionArchive from './pages/MissionArchive';
+import Login from './pages/Login';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         }
       }} />
       <Routes>
+        <Route path="/login" element={<Login />} />
         <Route path="/" element={<DashboardLayout />}>
           <Route index element={<LiveTracking />} />
           <Route path="archive" element={<MissionArchive />} />
