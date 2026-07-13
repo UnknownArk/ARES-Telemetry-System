@@ -38,12 +38,8 @@ def flush_telemetry_buffer(
     if not redis_client:
         raise HTTPException(status_code=500, detail="Redis offline.")
 
-    pipeline = redis_client.pipeline()
-    pipeline.lrange("telemetry_buffer", 0, -1)
-    pipeline.delete("telemetry_buffer")
-    results = pipeline.execute()
+    raw_data = redis_client.lrange("telemetry_buffer", 0, -1)
 
-    raw_data = results[0]
     if not raw_data:
         return {"message": "Buffer is empty."}
 
@@ -61,7 +57,10 @@ def flush_telemetry_buffer(
     try:
         db.bulk_insert_mappings(TelemetryLog, mappings)
         db.commit()
+        # SUCCESS: Safely trim only the items we processed
+        redis_client.ltrim("telemetry_buffer", len(raw_data), -1)
         return {"message": f"Successfully flushed {len(mappings)} records."}
     except Exception as e:
         db.rollback()
+        # The data is perfectly safe in Redis!
         raise HTTPException(status_code=500, detail="Write failed: " + str(e))

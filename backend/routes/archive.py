@@ -16,6 +16,8 @@ class MissionCreate(BaseModel):
     target_destination: str
     spacecraft_id: Optional[int] = None
     launch_date: Optional[date] = None
+    status: Optional[str] = "Planning"
+    objective: Optional[str] = None
 
 
 class ScientistResponse(BaseModel):
@@ -118,6 +120,8 @@ def create_mission(
         target_destination=mission.target_destination,
         spacecraft_id=mission.spacecraft_id,
         launch_date=mission.launch_date,
+        status=mission.status,
+        objective=mission.objective,
     )
     db.add(new_mission)
     try:

@@ -37,7 +37,7 @@ def fetch_live_iss():
 
 # --- AI Flight Director ---
 @router.post("/live/iss/analyze")
-def analyze_live_iss(admin: dict = Depends(verify_admin)):
+def analyze_live_iss():
     if not redis_client:
         raise HTTPException(status_code=500, detail="Redis cache unavailable.")
     # check cache first
@@ -61,11 +61,14 @@ def analyze_live_iss(admin: dict = Depends(verify_admin)):
 
     try:
         response = gemini_client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-flash-lite-latest",
             contents=prompt,
         )
         redis_client.setex("mission:iss:ai_report", 900, response.text)  # 900=15 min
         return {"report": response.text, "cached": False}
     except Exception as e:
-        print(f"--- AI EXECUTION FAILURE ---\n{str(e)}\n----------------------")
+        error_msg = str(e)
+        print(f"--- AI EXECUTION FAILURE ---\n{error_msg}\n----------------------")
+        if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
+            raise HTTPException(status_code=429, detail="AI Rate Limit Exceeded. Please wait 15 seconds.")
         raise HTTPException(status_code=500, detail="AI Diagnostics failed.")

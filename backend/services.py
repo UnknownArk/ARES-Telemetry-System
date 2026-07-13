@@ -13,7 +13,8 @@ gemini_client = genai.Client(api_key=api_key)
 
 # Redis connection
 try:
-    redis_client = redis.Redis(host="localhost", port=6379, db=0, decode_responses=True)
+    redis_host = os.getenv("REDIS_HOST", "localhost")
+    redis_client = redis.Redis(host=redis_host, port=6379, db=0, decode_responses=True)
     redis_client.ping()
     print("System: Redis caching layer active.")
 except redis.ConnectionError:

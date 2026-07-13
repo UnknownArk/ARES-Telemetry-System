@@ -1,4 +1,3 @@
-
 services:
   ares-db:
     image: postgres:15
@@ -19,6 +18,27 @@ services:
     ports:
       - "6379:6379"
     restart: unless-stopped
-    
+
+  backend:
+    build: ./backend
+    container_name: ares_backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - DB_PASSWORD=ares_password
+      - DB_HOST=ares_postgres
+      - REDIS_HOST=ares_redis
+    depends_on:
+      - ares-db
+      - ares-cache
+
+  frontend:
+    build: ./frontend
+    container_name: ares_frontend
+    ports:
+      - "80:80"
+
 volumes:
   ares_pg_data:
