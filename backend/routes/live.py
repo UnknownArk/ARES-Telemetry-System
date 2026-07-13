@@ -1,6 +1,5 @@
 import requests
-from fastapi import APIRouter, HTTPException, Depends
-from auth import verify_admin
+from fastapi import APIRouter, HTTPException
 from services import redis_client, gemini_client
 
 router = APIRouter()

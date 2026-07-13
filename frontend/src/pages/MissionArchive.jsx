@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Filter, Rocket, X, Users, Calendar, Target, Activity } from 'lucide-react';
+import { Search, Rocket, X, Users, Calendar, Target, Activity } from 'lucide-react';
 import axios from 'axios';
 
 export default function MissionArchive() {
