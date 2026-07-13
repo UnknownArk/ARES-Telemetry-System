@@ -61,9 +61,9 @@ Real-time orbital tracking powered by the [Where The ISS At](https://wheretheiss
 A Generative AI module powered by **Google Gemini 2.5 Flash** that translates raw orbital mechanics into human-readable diagnostic briefs. Responses are cached in Redis for 15 minutes to minimize redundant API calls.
 
 - Analyzes live telemetry (altitude, velocity, coordinates)
-- Generates actionable 2-paragraph diagnostic reports in Markdown
+- Generates actionable 2-paragraph diagnostic briefs in Markdown
 - Returns status classification (NOMINAL / WARNING)
-- Response caching layer prevents duplicate API charges
+- Publicly accessible endpoint with response caching layer to prevent duplicate API charges and quota limits
 
 ### ⚡ High-Frequency Ingestion Pipeline
 The engineering centerpiece — a Redis-backed telemetry buffer that decouples data ingestion from database writes.
@@ -118,7 +118,8 @@ Role-based access control using OAuth2 and JWT (JSON Web Tokens). Public users c
 │              │   mission_results     │    │    ai_report  │  │
 │              └───────────────────────┘    └───────────────┘  │
 │                                                              │
-│              Both containerized via Docker Compose            │
+│  Entire stack containerized via Docker Compose (frontend,    │
+│  backend, postgres, redis)                                   │
 └──────────────────────────────────────────────────────────────┘
                            │
                     External APIs
@@ -284,44 +285,30 @@ SECRET_KEY=your_secret_key_here
 GEMINI_API_KEY=your_actual_api_key
 ```
 
-### 2. Start Infrastructure
+### 2. Start the Stack
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
-This spins up PostgreSQL 15 on port `5432` and Redis 7 on port `6379`.
+This spins up the entire architecture:
+- PostgreSQL 15 on port `5432`
+- Redis 7 on port `6379`
+- FastAPI Backend on port `8000`
+- Vite/React Frontend on port `80` (accessible via Nginx)
 
-### 3. Start the Backend
+### 3. Seed the Database (Optional)
 
 ```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate        # Windows
-# source venv/bin/activate   # macOS/Linux
-pip install -r requirements.txt
-uvicorn main:app --reload
+docker compose exec backend python seed.py
 ```
 
-API is live at `http://localhost:8000`. Interactive docs at `http://localhost:8000/docs`.
+Injects 15 historical missions (Apollo 11, Voyager 1, JWST, Mangalyaan, etc.) into the Postgres database.
 
-### 4. Seed the Database (Optional)
+### 4. Access the Application
 
-```bash
-python seed.py
-```
-
-Injects 6 historical missions (Apollo 11, Voyager 1, JWST, Artemis I, Sputnik 1, Perseverance).
-
-### 5. Start the Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Dashboard is live at `http://localhost:5173`.
+- **Dashboard**: Live at `http://localhost`
+- **API Docs**: Live at `http://localhost:8000/docs`
 
 ---
 
