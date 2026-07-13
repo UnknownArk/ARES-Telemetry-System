@@ -8,6 +8,7 @@ export default function LiveTracking() {
   const [dimensions, setDimensions] = useState({ width: window.innerWidth, height: window.innerHeight });
   const [telemetry, setTelemetry] = useState(null);
   const [aiReport, setAiReport] = useState(null);
+  const [isCachedReport, setIsCachedReport] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Handle window resize for the globe
@@ -68,6 +69,7 @@ export default function LiveTracking() {
       const data = await res.json();
       
       setAiReport(data.report);
+      setIsCachedReport(data.cached);
       if (data.cached) {
          toast.success("Loaded from orbital cache");
       } else {
@@ -147,9 +149,12 @@ export default function LiveTracking() {
       {/* RIGHT HUD PANEL - AI Director */}
       <div className="absolute top-24 right-6 w-80 panel-glass p-4 hidden xl:block pointer-events-auto flex flex-col max-h-[70vh]">
         <div className="flex items-center justify-between mb-4 border-b border-purple-900/50 pb-2 shrink-0">
-          <h2 className="text-purple-400 font-bold tracking-widest text-xs uppercase">
-            AI Flight Director
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="text-purple-400 font-bold tracking-widest text-xs uppercase">
+              AI Flight Director
+            </h2>
+            {isCachedReport && <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30">CACHED</span>}
+          </div>
           <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded">Gemini</span>
         </div>
         
