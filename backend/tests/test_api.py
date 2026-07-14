@@ -7,6 +7,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///./test.db")
 os.environ.setdefault("SECRET_KEY", "test-secret")
 
 from fastapi.testclient import TestClient
+from unittest.mock import patch
 from main import app
 from database import engine
 import models
@@ -37,7 +38,7 @@ def test_failed_admin_login():
     assert response.status_code == 400
     assert response.json() == {"detail": "Incorrect username or password"}
 
-from unittest.mock import patch
+
 
 def test_get_missions_endpoint():
     response = client.get("/missions")
@@ -74,6 +75,6 @@ def test_analyze_live_iss_cached(mock_gemini, mock_redis):
     
     response = client.post("/live/iss/analyze")
     assert response.status_code == 200
-    assert response.json()["cached"] == True
+    assert response.json()["cached"] is True
     assert response.json()["report"] == "Mocked AI Report"
     mock_gemini.models.generate_content.assert_not_called()

@@ -53,7 +53,7 @@ jobs:
           pip install pytest httpx
           
       - name: Run Tests
-        run: pytest tests/
+        run: PYTHONPATH=. pytest tests/
 
   frontend-lint:
     runs-on: ubuntu-latest
