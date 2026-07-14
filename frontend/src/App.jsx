@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import DashboardLayout from './components/DashboardLayout';
 import LiveTracking from './pages/LiveTracking';
 import MissionArchive from './pages/MissionArchive';
+import SimulationConsole from './pages/SimulationConsole';
 import Login from './pages/Login';
 
 function App() {
@@ -20,11 +21,7 @@ function App() {
         <Route path="/" element={<DashboardLayout />}>
           <Route index element={<LiveTracking />} />
           <Route path="archive" element={<MissionArchive />} />
-          <Route path="simulations" element={
-            <div className="flex items-center justify-center h-full">
-              <p className="text-zinc-500 font-mono animate-pulse">SIMULATIONS OFFLINE</p>
-            </div>
-          } />
+          <Route path="simulations" element={<SimulationConsole />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

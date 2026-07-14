@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models import Mission as DBMission, TelemetryLog, Scientist, Agency, Spacecraft
 from auth import verify_admin
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from datetime import date
 
@@ -21,6 +21,8 @@ class MissionCreate(BaseModel):
 
 
 class ScientistResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: int
     name: str
     role: str
@@ -28,9 +30,6 @@ class ScientistResponse(BaseModel):
     email: str
     mission_id: Optional[int]
     bio: Optional[str]
-
-    class Config:
-        from_attributes = True
 
 
 class ScientistCreate(BaseModel):
@@ -147,6 +146,8 @@ def update_mission(
     db_mission.target_destination = mission.target_destination
     db_mission.launch_date = mission.launch_date
     db_mission.spacecraft_id = mission.spacecraft_id
+    db_mission.status = mission.status
+    db_mission.objective = mission.objective
 
     try:
         db.commit()

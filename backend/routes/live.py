@@ -42,21 +42,22 @@ def analyze_live_iss(request: Request):
     if not redis_client:
         raise HTTPException(status_code=500, detail="Redis cache unavailable.")
 
-    # IP-based Rate Limiting (max 3 requests per minute per IP)
-    client_ip = request.client.host if request.client else "unknown"
-    rate_limit_key = f"rate_limit:analyze:{client_ip}"
-    
-    requests_made = redis_client.incr(rate_limit_key)
-    if requests_made == 1:
-        redis_client.expire(rate_limit_key, 60)
-        
-    if requests_made > 3:
-        raise HTTPException(status_code=429, detail="Rate limit exceeded. Please wait 1 minute.")
-    # check cache first
     cached_report = redis_client.get("mission:iss:ai_report")
     if cached_report:
         print("System: Redis Cache HIT. Routing saved response.")
         return {"report": cached_report, "cached": True}
+
+    # IP-based rate limiting for Gemini calls only (max 3 cache misses per minute per IP).
+    client_ip = request.client.host if request.client else "unknown"
+    rate_limit_key = f"rate_limit:analyze:{client_ip}"
+
+    requests_made = redis_client.incr(rate_limit_key)
+    if requests_made == 1:
+        redis_client.expire(rate_limit_key, 60)
+
+    if requests_made > 3:
+        raise HTTPException(status_code=429, detail="Rate limit exceeded. Please wait 1 minute.")
+
     print("System: Redis Cache Miss. Querying Gemini API...")
 
     telemetry = fetch_live_iss()

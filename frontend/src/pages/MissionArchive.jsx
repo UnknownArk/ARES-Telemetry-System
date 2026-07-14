@@ -61,6 +61,8 @@ export default function MissionArchive() {
     return '/images/deep_space_1783949667585.png';
   };
 
+  const isActiveMission = (status) => status?.toLowerCase() === 'active';
+
   return (
     <div className="w-full h-full bg-black p-6 md:p-12 overflow-y-auto">
       <div className="max-w-7xl mx-auto">
@@ -125,8 +127,12 @@ export default function MissionArchive() {
                     <div className="w-12 h-12 rounded bg-black/50 backdrop-blur flex items-center justify-center border border-zinc-700 group-hover:border-purple-500/50 transition-colors">
                       <Rocket className="w-6 h-6 text-zinc-300 group-hover:text-purple-400 transition-colors" />
                     </div>
-                    <span className="px-2 py-1 text-[10px] font-bold font-mono rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                      ARCHIVED
+                    <span className={`px-2 py-1 text-[10px] font-bold font-mono rounded border ${
+                      isActiveMission(mission.status)
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : 'bg-zinc-800/80 text-zinc-300 border-zinc-700'
+                    }`}>
+                      {mission.status || 'UNKNOWN'}
                     </span>
                   </div>
                   
@@ -175,8 +181,17 @@ export default function MissionArchive() {
                 <X className="w-6 h-6" />
               </button>
 
-              <h2 className="text-3xl font-bold text-white mb-2">{selectedMission.name}</h2>
-              <div className="flex gap-4 mb-8 font-mono text-sm text-zinc-400 border-b border-zinc-800 pb-4">
+              <div className="flex items-start gap-3 mb-2 pr-8">
+                <h2 className="text-3xl font-bold text-white">{selectedMission.name}</h2>
+                <span className={`mt-1 px-2 py-1 text-[10px] font-bold font-mono rounded border ${
+                  isActiveMission(selectedMission.status)
+                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                    : 'bg-zinc-800 text-zinc-300 border-zinc-700'
+                }`}>
+                  {selectedMission.status || 'UNKNOWN'}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-4 mb-8 font-mono text-sm text-zinc-400 border-b border-zinc-800 pb-4">
                 <span className="flex items-center gap-2"><Target className="w-4 h-4 text-purple-400" /> {selectedMission.target_destination}</span>
                 <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-purple-400" /> {selectedMission.launch_date || 'N/A'}</span>
               </div>
@@ -187,8 +202,7 @@ export default function MissionArchive() {
                   MISSION OVERVIEW
                 </h3>
                 <p className="text-zinc-300 leading-relaxed text-sm">
-                  The {selectedMission.name} mission was launched to explore {selectedMission.target_destination}. 
-                  All telemetry records and scientific payload logs are securely archived in the A.R.E.S. central database.
+                  {selectedMission.objective || `The ${selectedMission.name} mission was launched to explore ${selectedMission.target_destination}.`}
                 </p>
               </div>
 

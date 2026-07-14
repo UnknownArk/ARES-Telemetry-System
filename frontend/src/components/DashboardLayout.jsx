@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Outlet, NavLink } from 'react-router-dom';
 import { 
   Database, 
@@ -9,6 +10,16 @@ import {
 } from 'lucide-react';
 
 export default function DashboardLayout() {
+  const [missionClock, setMissionClock] = useState(() => new Date().toISOString().slice(11, 19));
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setMissionClock(new Date().toISOString().slice(11, 19));
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
   return (
     <div className="flex h-screen w-full bg-black text-white overflow-hidden">
       
@@ -80,7 +91,7 @@ export default function DashboardLayout() {
           
           <div className="pointer-events-auto flex items-center gap-4 bg-zinc-950/80 border border-zinc-800 rounded-full px-4 py-1.5 backdrop-blur-md">
             <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span>
-            <span className="font-mono text-xs tracking-wider text-zinc-300">MISSION CLOCK: 14:02:45 UTC</span>
+            <span className="font-mono text-xs tracking-wider text-zinc-300">MISSION CLOCK: {missionClock} UTC</span>
           </div>
 
           <div className="pointer-events-auto flex gap-3">

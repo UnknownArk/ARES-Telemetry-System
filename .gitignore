@@ -7,8 +7,10 @@ npm-debug.log*
 __pycache__/
 *.pyc
 venv/
+.venv/
 env/
 .pytest_cache/
+.ruff_cache/
 
 # Environment Variables 
 .env

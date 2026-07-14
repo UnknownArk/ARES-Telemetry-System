@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from services import redis_client
 import json
+import uuid
 from auth import verify_admin
 from models import TelemetryLog
 
@@ -38,29 +39,36 @@ def flush_telemetry_buffer(
     if not redis_client:
         raise HTTPException(status_code=500, detail="Redis offline.")
 
-    raw_data = redis_client.lrange("telemetry_buffer", 0, -1)
-
-    if not raw_data:
-        return {"message": "Buffer is empty."}
-
-    mappings = []
-    for item in raw_data:
-        data = json.loads(item)
-        mappings.append(
-            {
-                "mission_id": data["mission_id"],
-                "parameter_name": data["parameter_name"],
-                "parameter_value": data["parameter_value"],
-            }
-        )
+    lock_key = "telemetry_buffer:flush_lock"
+    lock_token = str(uuid.uuid4())
+    if not redis_client.set(lock_key, lock_token, nx=True, ex=30):
+        raise HTTPException(status_code=409, detail="Telemetry flush already in progress.")
 
     try:
+        raw_data = redis_client.lrange("telemetry_buffer", 0, -1)
+
+        if not raw_data:
+            return {"message": "Buffer is empty."}
+
+        mappings = []
+        for item in raw_data:
+            data = json.loads(item)
+            mappings.append(
+                {
+                    "mission_id": data["mission_id"],
+                    "parameter_name": data["parameter_name"],
+                    "parameter_value": data["parameter_value"],
+                }
+            )
+
         db.bulk_insert_mappings(TelemetryLog, mappings)
         db.commit()
-        # SUCCESS: Safely trim only the items we processed
+        # Remove only the items read before this flush; records appended during the flush remain queued.
         redis_client.ltrim("telemetry_buffer", len(raw_data), -1)
         return {"message": f"Successfully flushed {len(mappings)} records."}
     except Exception as e:
         db.rollback()
-        # The data is perfectly safe in Redis!
         raise HTTPException(status_code=500, detail="Write failed: " + str(e))
+    finally:
+        if redis_client.get(lock_key) == lock_token:
+            redis_client.delete(lock_key)

@@ -8,11 +8,12 @@
 ![Postgres](https://img.shields.io/badge/PostgreSQL_15-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
 ![Gemini](https://img.shields.io/badge/Gemini_2.5_Flash-8E75B2?style=for-the-badge&logo=google&logoColor=white)
-![Leaflet](https://img.shields.io/badge/Leaflet-199900?style=for-the-badge&logo=leaflet&logoColor=white)
+![Three.js](https://img.shields.io/badge/Three.js-000000?style=for-the-badge&logo=threedotjs&logoColor=white)
 
-<!-- Add a screenshot/gif of the landing page here -->
-<!-- ![A.R.E.S. Screenshot](./docs/screenshot.png) -->
-
+### A.R.E.S. In Action
+![Live Tracking](docs/screenshot_live_tracking.png)
+![Mission Archive](docs/screenshot_mission_archive.png)
+![Telemetry Console](docs/screenshot_telemetry_console.png)
 ---
 
 ## Table of Contents
@@ -20,6 +21,7 @@
 - [Why This Project Exists](#why-this-project-exists)
 - [Core Features](#core-features)
 - [System Architecture](#system-architecture)
+- [Architecture & Data Flows](docs/ARCHITECTURE.md)
 - [Tech Stack](#tech-stack)
 - [Data Flow: Telemetry Ingestion Pipeline](#data-flow-telemetry-ingestion-pipeline)
 - [API Reference](#api-reference)
@@ -63,18 +65,18 @@ A Generative AI module powered by **Google Gemini 2.5 Flash** that translates ra
 - Analyzes live telemetry (altitude, velocity, coordinates)
 - Generates actionable 2-paragraph diagnostic briefs in Markdown
 - Returns status classification (NOMINAL / WARNING)
-- Publicly accessible endpoint with response caching layer to prevent duplicate API charges and quota limits
+- Publicly accessible endpoint with response caching and IP-based rate limiting to control Gemini usage
 
 ### ⚡ High-Frequency Ingestion Pipeline
 The engineering centerpiece — a Redis-backed telemetry buffer that decouples data ingestion from database writes.
 
 - **Stream**: Telemetry payloads are pushed to a Redis list (`telemetry_buffer`) in O(1) time
 - **Buffer**: Data accumulates in memory without touching the relational database
-- **Flush**: Admin triggers a batched write — Redis queue is atomically drained and bulk-inserted into PostgreSQL
+- **Flush**: Admin triggers a batched write. Records are read from Redis, bulk-inserted into PostgreSQL, then trimmed from the buffer after a successful commit.
 - **Why**: This pattern prevents database lock contention under high write loads
 
 ### 🔐 Secure Commander Access
-Role-based access control using OAuth2 and JWT (JSON Web Tokens). Public users can browse missions and view live data. Only authenticated commanders can modify data, trigger flushes, or invoke AI analysis.
+Role-based access control using OAuth2 and JWT (JSON Web Tokens). Public users can browse missions, view live data, and request cached/rate-limited AI analysis. Only authenticated commanders can modify data or trigger telemetry buffer flushes.
 
 - OAuth2 password flow with JWT bearer tokens
 - 2-hour token expiry with automatic re-authentication
@@ -84,6 +86,8 @@ Role-based access control using OAuth2 and JWT (JSON Web Tokens). Public users c
 ---
 
 ## System Architecture
+
+For a detailed breakdown of the request flow, authentication, telemetry buffering, and AI rate-limiting, see the **[Architecture & Data Flows Documentation](docs/ARCHITECTURE.md)**.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -141,9 +145,9 @@ Role-based access control using OAuth2 and JWT (JSON Web Tokens). Public users c
 |-------|-----------|---------|
 | **Frontend** | React 19 (Vite) | Component-based UI with hot module replacement |
 | **Styling** | Tailwind CSS v4 | Utility-first CSS framework |
-| **State Management** | TanStack React Query v5 | Server state caching, background refetching, mutations |
+| **State Management** | React state + effects | Lightweight client state for the current dashboard scope |
 | **HTTP Client** | Axios | Request interceptors for JWT auth injection |
-| **Mapping** | Leaflet / React-Leaflet | Interactive satellite tracking visualization |
+| **Mapping** | react-globe.gl / Three.js | Interactive 3D orbital tracking visualization |
 | **Backend** | Python + FastAPI | Async-capable REST API with automatic OpenAPI docs |
 | **ORM** | SQLAlchemy | Relational mapping with relationship cascades |
 | **Validation** | Pydantic v2 | Request/response schema validation |
@@ -168,7 +172,7 @@ POST /telemetry/stream      in-memory list             POST /telemetry/flush
         ▼                         ▼                          ▼
    ┌─────────┐              ┌──────────┐              ┌──────────┐
    │ FastAPI  │──rpush()──▶ │  Redis   │──lrange()──▶ │ FastAPI  │
-   │ receives │   O(1)      │  Buffer  │  + delete()  │ reads &  │
+   │ receives │   O(1)      │  Buffer  │  + ltrim()   │ reads &  │
    │ payload  │             │          │              │ clears   │
    └─────────┘              └──────────┘              └────┬─────┘
                                                            │
@@ -202,6 +206,7 @@ Under high-frequency ingestion (hundreds of writes/second), PostgreSQL acquires 
 | `GET` | `/agencies` | List all space agencies |
 | `GET` | `/spacecrafts` | List all registered spacecraft |
 | `GET` | `/live/iss/telemetry` | Fetch live ISS position (with failsafe) |
+| `POST` | `/live/iss/analyze` | Generate public AI diagnostic report via Gemini cache/rate limit |
 
 ### Protected Routes (JWT Bearer Token Required)
 
@@ -216,7 +221,6 @@ Under high-frequency ingestion (hundreds of writes/second), PostgreSQL acquires 
 | `POST` | `/spacecraft` | Register a new spacecraft |
 | `POST` | `/telemetry/stream` | Push telemetry payload to Redis buffer |
 | `POST` | `/telemetry/flush` | Flush Redis buffer to PostgreSQL |
-| `POST` | `/live/iss/analyze` | Generate AI diagnostic report via Gemini |
 
 ---
 
