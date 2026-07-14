@@ -14,19 +14,18 @@ The A.R.E.S. platform is a containerized web application comprising four main se
 ## 2. Request Flow: Mission Archive
 
 When a user views historical missions on the frontend:
-1. `MissionArchive.jsx` sends an authenticated `GET /missions` request to the backend.
-2. The FastAPI router validates the JWT token.
-3. The backend queries the PostgreSQL database via SQLAlchemy to fetch missions and their associated crew members.
-4. Data is returned in JSON format, and the frontend dynamically displays the mission cards.
+1. `MissionArchive.jsx` sends a public `GET /missions` request to the backend.
+2. The backend queries the PostgreSQL database via SQLAlchemy to fetch missions and their associated crew members.
+3. Data is returned in JSON format, and the frontend dynamically displays the mission cards.
 
 ## 3. Data Flow: Live Telemetry & Redis Buffer
 
 The system must handle high-frequency live telemetry without overwhelming the primary database.
 1. The frontend (`LiveTracking.jsx`) polls `GET /live/iss/telemetry` every 5 seconds.
-2. The backend fetches raw coordinates from the public Open-Notify ISS API.
+2. The backend fetches raw coordinates from the public **Where The ISS At** API.
 3. Simultaneously, any telemetry streamed via `POST /telemetry/stream` (e.g., from a simulation script) is caught by the backend.
 4. Instead of writing directly to PostgreSQL, the backend writes to **Redis** (the buffer).
-5. A background process flushes the Redis buffer in batches to PostgreSQL. This prevents write-locking and DB saturation during high-throughput events.
+5. An administrator manually flushes the Redis buffer in batches to PostgreSQL via `POST /telemetry/flush`. This prevents write-locking and DB saturation during high-throughput events.
 
 ## 4. Authentication Flow
 

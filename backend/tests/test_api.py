@@ -46,10 +46,17 @@ def test_get_missions_endpoint():
     assert "missions" in response.json()
     assert isinstance(response.json()["missions"], list)
 
+@patch("routes.live.requests.get")
 @patch("routes.live.redis_client")
-def test_live_iss_telemetry_endpoint(mock_redis):
-    # This endpoint does not actually use redis in /live/iss/telemetry, it uses requests. 
-    # But /live/iss/analyze uses redis and gemini. The user requested /live/iss/telemetry tests.
+def test_live_iss_telemetry_endpoint(mock_redis, mock_requests_get):
+    # Mock the external WhereTheIss.at API
+    class MockResponse:
+        def json(self):
+            return {"altitude": 420.0, "velocity": 27500.0, "latitude": 10.0, "longitude": 20.0}
+        def raise_for_status(self):
+            pass
+    mock_requests_get.return_value = MockResponse()
+
     response = client.get("/live/iss/telemetry")
     assert response.status_code == 200
     data = response.json()
