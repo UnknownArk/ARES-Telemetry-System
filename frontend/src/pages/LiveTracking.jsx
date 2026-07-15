@@ -101,7 +101,7 @@ export default function LiveTracking() {
           globeImageUrl="//unpkg.com/three-globe/example/img/earth-dark.jpg"
           bumpImageUrl="//unpkg.com/three-globe/example/img/earth-topology.png"
           backgroundImageUrl="//unpkg.com/three-globe/example/img/night-sky.png"
-          atmosphereColor="#a855f7"
+          atmosphereColor="#06b6d4"
           atmosphereAltitude={0.15}
           htmlElementsData={markerData}
           htmlElement={() => {
@@ -114,7 +114,7 @@ export default function LiveTracking() {
 
       {/* LEFT HUD PANEL - Telemetry */}
       <div className="absolute top-24 left-6 w-80 panel-glass p-4 hidden lg:block pointer-events-auto">
-        <h2 className="text-purple-400 font-bold tracking-widest text-xs uppercase mb-4 border-b border-purple-900/50 pb-2">
+        <h2 className="text-zinc-100 font-bold tracking-widest text-xs uppercase mb-4 border-b border-zinc-800 pb-2">
           Live Telemetry: ISS
         </h2>
         
@@ -148,14 +148,14 @@ export default function LiveTracking() {
 
       {/* RIGHT HUD PANEL - AI Director */}
       <div className="absolute top-24 right-6 w-80 panel-glass p-4 hidden xl:block pointer-events-auto flex flex-col max-h-[70vh]">
-        <div className="flex items-center justify-between mb-4 border-b border-purple-900/50 pb-2 shrink-0">
+        <div className="flex items-center justify-between mb-4 border-b border-zinc-800 pb-2 shrink-0">
           <div className="flex items-center gap-2">
-            <h2 className="text-purple-400 font-bold tracking-widest text-xs uppercase">
+            <h2 className="text-zinc-100 font-bold tracking-widest text-xs uppercase">
               AI Flight Director
             </h2>
-            {isCachedReport && <span className="text-[9px] bg-blue-500/20 text-blue-300 px-1.5 py-0.5 rounded border border-blue-500/30">CACHED</span>}
+            {isCachedReport && <span className="text-[9px] bg-zinc-800 text-zinc-300 px-1.5 py-0.5 rounded border border-zinc-700">CACHED</span>}
           </div>
-          <span className="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded">Gemini</span>
+          <span className="text-[10px] bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded border border-emerald-500/20">Gemini</span>
         </div>
         
         <div className="text-xs text-zinc-300 leading-relaxed font-mono overflow-y-auto flex-grow custom-scrollbar pr-2 mb-4">
@@ -163,7 +163,7 @@ export default function LiveTracking() {
             <div className="space-y-2">
               <ReactMarkdown components={{
                 p: ({...props}) => <p className="mb-2 last:mb-0" {...props} />,
-                strong: ({...props}) => <strong className="text-purple-300 font-bold" {...props} />
+                strong: ({...props}) => <strong className="text-zinc-100 font-bold" {...props} />
               }}>
                 {aiReport}
               </ReactMarkdown>
@@ -176,7 +176,7 @@ export default function LiveTracking() {
         <button 
           onClick={generateReport}
           disabled={isGenerating}
-          className="mt-auto w-full py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white font-bold text-xs rounded tracking-wider transition-colors shrink-0"
+          className="mt-auto w-full py-2 bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500 text-black font-bold text-xs rounded tracking-wider transition-colors shrink-0"
         >
           {isGenerating ? 'ANALYZING...' : 'GENERATE NEW REPORT'}
         </button>
@@ -185,7 +185,7 @@ export default function LiveTracking() {
       {/* BOTTOM HUD - Raw Data Stream */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-2xl panel-glass p-3 hidden md:block pointer-events-auto">
         <div className="font-mono text-xs text-zinc-500 flex items-center justify-between overflow-hidden">
-          <span className="text-purple-500 font-bold shrink-0 mr-4">STREAM</span>
+          <span className="text-emerald-500 font-bold shrink-0 mr-4">STREAM</span>
           <span className="truncate flex-grow">
             {telemetry ? JSON.stringify(telemetry) : 'WAITING FOR SIGNAL...'}
           </span>

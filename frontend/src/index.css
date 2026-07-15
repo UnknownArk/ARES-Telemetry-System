@@ -24,15 +24,10 @@
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a855f7; /* neon purple on hover */
+  background: #e4e4e7; /* stark zinc-200 on hover */
 }
 
-/* Glassmorphism panel utility */
+/* High-contrast solid panel */
 .panel-glass {
-  @apply bg-black/60 backdrop-blur-md border border-zinc-800/50 rounded-lg;
-}
-
-/* Glowing text utility */
-.text-glow {
-  text-shadow: 0 0 10px rgba(168, 85, 247, 0.5);
+  @apply bg-zinc-950 border border-zinc-800 rounded-none;
 }

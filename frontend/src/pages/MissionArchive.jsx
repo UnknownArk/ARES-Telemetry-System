@@ -55,12 +55,7 @@ export default function MissionArchive() {
     m.target_destination.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Helper to pick an image based on mission name (Apollo vs others)
-  const getMissionImage = (name) => {
-    if (name.toLowerCase().includes('apollo')) return '/images/apollo_mission_1783949649618.png';
-    return '/images/deep_space_1783949667585.png';
-  };
-
+  // Clean data-driven status check
   const isActiveMission = (status) => status?.toLowerCase() === 'active';
 
   return (
@@ -69,7 +64,7 @@ export default function MissionArchive() {
         
         {/* HEADER */}
         <header className="mb-10">
-          <h1 className="text-4xl font-bold tracking-widest text-white mb-2 text-glow">
+          <h1 className="text-4xl font-bold tracking-widest text-zinc-100 mb-2">
             MISSION ARCHIVE
           </h1>
           <p className="text-zinc-500 font-mono text-sm">
@@ -86,7 +81,7 @@ export default function MissionArchive() {
               placeholder="Search missions or destinations..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-zinc-900 border border-zinc-800 rounded-lg py-3 pl-10 pr-4 text-white placeholder-zinc-500 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all font-mono text-sm"
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-none py-3 pl-10 pr-4 text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all font-mono text-sm"
             />
           </div>
           {/* Note: Filter button removed as per review, or kept decorative if explicitly desired. Removed to clear tech debt. */}
@@ -95,7 +90,7 @@ export default function MissionArchive() {
         {/* DATA GRID */}
         {loading ? (
           <div className="flex justify-center items-center h-64">
-            <div className="w-8 h-8 border-4 border-purple-500 border-t-transparent rounded-full animate-spin"></div>
+            <div className="w-8 h-8 border-4 border-zinc-500 border-t-transparent rounded-full animate-spin"></div>
           </div>
         ) : error ? (
           <div className="p-4 bg-red-900/20 border border-red-500/50 rounded-lg text-red-400 font-mono text-sm">
@@ -111,21 +106,13 @@ export default function MissionArchive() {
               <div 
                 key={mission.id} 
                 onClick={() => openMissionDetails(mission)}
-                className="group panel-glass p-0 hover:border-purple-500/50 transition-colors cursor-pointer relative overflow-hidden flex flex-col h-64"
+                className="group panel-glass p-0 hover:border-zinc-400 transition-colors cursor-pointer relative overflow-hidden flex flex-col h-48 bg-zinc-950"
               >
-                {/* Background Image */}
-                <div 
-                  className="absolute inset-0 bg-cover bg-center opacity-40 group-hover:opacity-60 transition-opacity duration-500"
-                  style={{ backgroundImage: `url(${getMissionImage(mission.name)})` }}
-                />
-                
-                {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
-                
-                <div className="relative z-10 p-6 flex flex-col h-full">
+                <div className="relative z-10 p-6 flex flex-col h-full border-l-4 border-zinc-700 group-hover:border-zinc-400 transition-colors">
                   <div className="flex justify-between items-start mb-auto">
-                    <div className="w-12 h-12 rounded bg-black/50 backdrop-blur flex items-center justify-center border border-zinc-700 group-hover:border-purple-500/50 transition-colors">
-                      <Rocket className="w-6 h-6 text-zinc-300 group-hover:text-purple-400 transition-colors" />
+                    <div className="flex items-center gap-2">
+                      <Rocket className="w-5 h-5 text-zinc-500 group-hover:text-zinc-300 transition-colors" />
+                      <span className="text-xs font-mono text-zinc-500 tracking-widest">ID: {mission.id.toString().padStart(4, '0')}</span>
                     </div>
                     <span className={`px-2 py-1 text-[10px] font-bold font-mono rounded border ${
                       isActiveMission(mission.status)
@@ -137,7 +124,7 @@ export default function MissionArchive() {
                   </div>
                   
                   <div>
-                    <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-purple-300 transition-colors">
+                    <h3 className="text-2xl font-bold text-zinc-100 mb-2 group-hover:text-white transition-colors">
                       {mission.name}
                     </h3>
                     <div className="flex items-center gap-4 font-mono text-xs text-zinc-400">
@@ -156,33 +143,24 @@ export default function MissionArchive() {
       {/* DETAILED MISSION MODAL */}
       {selectedMission && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-zinc-950 border border-zinc-800 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col md:flex-row shadow-2xl shadow-purple-900/20 animate-fade-in">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-none w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl shadow-black/50 animate-fade-in">
             
-            {/* Left Image Section */}
-            <div className="md:w-2/5 h-64 md:h-auto relative">
-              <div 
-                className="absolute inset-0 bg-cover bg-center"
-                style={{ backgroundImage: `url(${getMissionImage(selectedMission.name)})` }}
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent to-zinc-950 md:bg-gradient-to-t md:from-zinc-950 md:to-transparent"></div>
-              <div className="absolute top-4 left-4">
-                <span className="px-3 py-1 bg-black/60 backdrop-blur border border-zinc-700 rounded text-xs font-mono text-white tracking-widest">
-                  DATABASE ID: {selectedMission.id.toString().padStart(4, '0')}
-                </span>
-              </div>
-            </div>
-
-            {/* Right Content Section */}
-            <div className="md:w-3/5 p-8 overflow-y-auto flex flex-col">
+            {/* Header Section */}
+            <div className="p-8 border-b border-zinc-800 bg-zinc-900/50 relative">
               <button 
                 onClick={closeMissionDetails}
                 className="absolute top-4 right-4 p-2 text-zinc-500 hover:text-white transition-colors"
               >
                 <X className="w-6 h-6" />
               </button>
+              <div className="mb-2">
+                <span className="px-2 py-1 bg-zinc-800 border border-zinc-700 rounded-none text-[10px] font-mono text-zinc-400 tracking-widest">
+                  DATABASE ID: {selectedMission.id.toString().padStart(4, '0')}
+                </span>
+              </div>
 
-              <div className="flex items-start gap-3 mb-2 pr-8">
-                <h2 className="text-3xl font-bold text-white">{selectedMission.name}</h2>
+              <div className="flex items-start gap-3 mb-4 pr-8">
+                <h2 className="text-3xl font-bold text-zinc-100">{selectedMission.name}</h2>
                 <span className={`mt-1 px-2 py-1 text-[10px] font-bold font-mono rounded border ${
                   isActiveMission(selectedMission.status)
                     ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
@@ -191,9 +169,13 @@ export default function MissionArchive() {
                   {selectedMission.status || 'UNKNOWN'}
                 </span>
               </div>
+            </div>
+
+            {/* Content Section */}
+            <div className="p-8 overflow-y-auto flex-1 bg-zinc-950">
               <div className="flex flex-wrap gap-4 mb-8 font-mono text-sm text-zinc-400 border-b border-zinc-800 pb-4">
-                <span className="flex items-center gap-2"><Target className="w-4 h-4 text-purple-400" /> {selectedMission.target_destination}</span>
-                <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-purple-400" /> {selectedMission.launch_date || 'N/A'}</span>
+                <span className="flex items-center gap-2"><Target className="w-4 h-4 text-zinc-500" /> {selectedMission.target_destination}</span>
+                <span className="flex items-center gap-2"><Calendar className="w-4 h-4 text-zinc-500" /> {selectedMission.launch_date || 'N/A'}</span>
               </div>
 
               <div className="mb-8">
@@ -220,10 +202,10 @@ export default function MissionArchive() {
                     {crew.map(member => (
                       <div key={member.id} className="bg-zinc-900 border border-zinc-800 p-3 rounded flex justify-between items-center">
                         <div>
-                          <p className="text-white font-bold text-sm">{member.name}</p>
+                          <p className="text-zinc-100 font-bold text-sm">{member.name}</p>
                           <p className="text-zinc-500 text-xs font-mono">{member.role} | {member.specialty}</p>
                         </div>
-                        <span className="text-xs font-mono text-purple-400 bg-purple-500/10 px-2 py-1 rounded">
+                        <span className="text-xs font-mono text-zinc-300 bg-zinc-800 px-2 py-1 rounded-none">
                           {member.email}
                         </span>
                       </div>

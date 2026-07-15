@@ -5,8 +5,7 @@ import {
   Activity, 
   Terminal, 
   Menu, 
-  User,
-  Settings
+  User
 } from 'lucide-react';
 
 export default function DashboardLayout() {
@@ -27,10 +26,10 @@ export default function DashboardLayout() {
       <aside className="w-16 md:w-64 flex-shrink-0 border-r border-zinc-900 bg-black/95 z-50 flex flex-col">
         <div className="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-zinc-900">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-purple-600 flex items-center justify-center">
-              <span className="font-bold font-mono text-sm">A</span>
+            <div className="w-8 h-8 rounded bg-zinc-100 flex items-center justify-center">
+              <span className="font-bold font-mono text-sm text-black">A</span>
             </div>
-            <span className="hidden md:block font-bold tracking-widest text-glow">A.R.E.S.</span>
+            <span className="hidden md:block font-bold tracking-widest text-zinc-100">A.R.E.S.</span>
           </div>
         </div>
 
@@ -39,7 +38,7 @@ export default function DashboardLayout() {
             to="/" 
             className={({isActive}) => 
               `flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
-                isActive ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                isActive ? 'bg-zinc-800 text-zinc-100 border border-zinc-700' : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent'
               }`
             }
           >
@@ -90,14 +89,12 @@ export default function DashboardLayout() {
           </div>
           
           <div className="pointer-events-auto flex items-center gap-4 bg-zinc-950/80 border border-zinc-800 rounded-full px-4 py-1.5 backdrop-blur-md">
-            <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span className="font-mono text-xs tracking-wider text-zinc-300">MISSION CLOCK: {missionClock} UTC</span>
           </div>
 
           <div className="pointer-events-auto flex gap-3">
-             <button className="p-2 bg-zinc-900/50 hover:bg-zinc-800 rounded-full border border-zinc-800 backdrop-blur-md">
-               <Settings className="w-4 h-4 text-zinc-400" />
-             </button>
+             {/* Removed dead settings icon */}
           </div>
         </header>
 
