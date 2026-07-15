@@ -7,6 +7,7 @@ import {
   Menu, 
   User
 } from 'lucide-react';
+import AresLogo from './AresLogo';
 
 export default function DashboardLayout() {
   const [missionClock, setMissionClock] = useState(() => new Date().toISOString().slice(11, 19));
@@ -26,9 +27,7 @@ export default function DashboardLayout() {
       <aside className="w-16 md:w-64 flex-shrink-0 border-r border-zinc-900 bg-black/95 z-50 flex flex-col">
         <div className="h-16 flex items-center justify-center md:justify-start md:px-6 border-b border-zinc-900">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded bg-zinc-100 flex items-center justify-center">
-              <span className="font-bold font-mono text-sm text-black">A</span>
-            </div>
+            <AresLogo className="w-8 h-8 text-zinc-100" />
             <span className="hidden md:block font-bold tracking-widest text-zinc-100">A.R.E.S.</span>
           </div>
         </div>

@@ -147,7 +147,7 @@ export default function LiveTracking() {
       </div>
 
       {/* RIGHT HUD PANEL - AI Director */}
-      <div className="absolute top-24 right-6 w-80 panel-glass p-4 hidden xl:block pointer-events-auto flex flex-col max-h-[70vh]">
+      <div className="absolute top-24 right-6 w-80 panel-glass p-4 hidden xl:flex pointer-events-auto flex-col max-h-[70vh] overflow-hidden">
         <div className="flex items-center justify-between mb-4 border-b border-zinc-800 pb-2 shrink-0">
           <div className="flex items-center gap-2">
             <h2 className="text-zinc-100 font-bold tracking-widest text-xs uppercase">
