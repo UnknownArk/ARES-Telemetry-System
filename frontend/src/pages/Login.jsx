@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { toast } from 'react-hot-toast';
 import { Lock, User } from 'lucide-react';
+import AresLogo from '../components/AresLogo';
 
 export default function Login() {
   const [username, setUsername] = useState('');
@@ -44,20 +45,20 @@ export default function Login() {
 
   return (
     <div className="flex items-center justify-center min-h-screen w-full bg-black">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-purple-900/20 via-black to-black pointer-events-none"></div>
+      <div className="absolute inset-0 bg-zinc-950 pointer-events-none"></div>
       
       <div className="relative z-10 w-full max-w-md p-8 panel-glass">
-        <div className="mb-8 text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-lg bg-purple-600/20 border border-purple-500/50 flex items-center justify-center">
-             <span className="font-bold font-mono text-3xl text-purple-400 text-glow">A</span>
+        <div className="mb-8 text-center flex flex-col items-center">
+          <div className="w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+             <AresLogo className="w-full h-full text-zinc-100" />
           </div>
-          <h1 className="text-2xl font-bold tracking-widest text-glow mb-2 uppercase">A.R.E.S. System</h1>
-          <p className="text-zinc-500 font-mono text-sm uppercase">Restricted Access</p>
+          <h1 className="text-2xl font-bold tracking-widest mb-2 uppercase text-zinc-100">A.R.E.S. System</h1>
+          <p className="text-zinc-500 font-mono text-sm uppercase border border-zinc-800 px-2 py-1 inline-block bg-black">Restricted Access</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
-            <label className="block text-purple-400 font-mono text-xs mb-2 tracking-wider">USERNAME</label>
+            <label className="block text-zinc-400 font-mono text-xs mb-2 tracking-wider">USERNAME</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <User className="h-4 w-4 text-zinc-500" />
@@ -66,7 +67,7 @@ export default function Login() {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-black/50 border border-zinc-800 focus:border-purple-500 text-white rounded pl-10 pr-4 py-2 outline-none font-mono text-sm transition-colors"
+                className="w-full bg-black/50 border border-zinc-800 focus:border-emerald-500 text-white rounded-none pl-10 pr-4 py-2 outline-none font-mono text-sm transition-colors"
                 placeholder="Enter admin username"
                 required
               />
@@ -74,7 +75,7 @@ export default function Login() {
           </div>
 
           <div>
-            <label className="block text-purple-400 font-mono text-xs mb-2 tracking-wider">PASSWORD</label>
+            <label className="block text-zinc-400 font-mono text-xs mb-2 tracking-wider">PASSWORD</label>
             <div className="relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                 <Lock className="h-4 w-4 text-zinc-500" />
@@ -83,7 +84,7 @@ export default function Login() {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-black/50 border border-zinc-800 focus:border-purple-500 text-white rounded pl-10 pr-4 py-2 outline-none font-mono text-sm transition-colors"
+                className="w-full bg-black/50 border border-zinc-800 focus:border-emerald-500 text-white rounded-none pl-10 pr-4 py-2 outline-none font-mono text-sm transition-colors"
                 placeholder="********"
                 required
               />
@@ -93,7 +94,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3 bg-purple-600 hover:bg-purple-500 disabled:bg-purple-800 text-white font-bold font-mono text-sm rounded tracking-widest transition-colors flex justify-center items-center gap-2 mt-8 cursor-pointer"
+            className="w-full py-3 bg-zinc-100 hover:bg-white disabled:bg-zinc-800 disabled:text-zinc-500 text-black font-bold font-mono text-sm rounded-none tracking-widest transition-colors flex justify-center items-center gap-2 mt-8 cursor-pointer"
           >
             {isLoading ? (
               <span className="animate-pulse">AUTHENTICATING...</span>

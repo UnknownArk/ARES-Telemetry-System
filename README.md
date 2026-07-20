@@ -250,7 +250,7 @@ ARES-Telemetry-System/
     ├── package.json
     ├── vite.config.js
     └── src/
-        ├── main.jsx            # React entry with QueryClientProvider
+        ├── main.jsx            # React entry point
         ├── App.jsx             # Root component and routing
         ├── index.css           # Tailwind imports + custom theme
         └── components/         # UI components
