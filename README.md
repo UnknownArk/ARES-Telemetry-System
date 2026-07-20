@@ -11,9 +11,10 @@
 ![Three.js](https://img.shields.io/badge/Three.js-000000?style=for-the-badge&logo=threedotjs&logoColor=white)
 
 ### A.R.E.S. In Action
-![Live Tracking](docs/screenshot_live_tracking.png)
 ![Mission Archive](docs/screenshot_mission_archive.png)
+![Mission Modal](docs/screenshot_mission_modal.png)
 ![Telemetry Console](docs/screenshot_telemetry_console.png)
+
 ---
 
 ## Table of Contents
@@ -38,6 +39,18 @@ Standard web applications rely on direct CRUD operations — a client sends data
 **A.R.E.S.** was built to solve this problem. Instead of hammering PostgreSQL with rapid inserts, telemetry is captured instantly in an in-memory **Redis** buffer (O(1) writes) and later flushed to **PostgreSQL** via optimized bulk inserts. This dual-tier architecture is the same pattern used in production systems at companies handling real-time data at scale.
 
 Beyond the engineering pipeline, A.R.E.S. is designed as an **all-in-one space exploration hub** — a platform where users can browse a realistic searchable sample of historical and active missions, track live satellites in real-time on an interactive map, and leverage AI to generate diagnostic reports from raw orbital mechanics.
+
+---
+
+## Engineering Summary
+
+If you are exploring this repository to understand its technical foundations, keep the following core engineering concepts in mind:
+
+- *"A.R.E.S. is a FastAPI and React full-stack telemetry system."*
+- *"The core engineering problem it solves is high-frequency database writes."*
+- *"Instead of bottlenecking a relational database, Redis absorbs data bursts in memory, then FastAPI bulk-flushes the records to Postgres."*
+- *"The Mission Archive is a public-facing dataset backed by real synced Launch Library data."*
+- *"Admin-only endpoints protect mutations and the telemetry flushing pipeline, using JWT."*
 
 ---
 
@@ -328,6 +341,24 @@ Building A.R.E.S. taught me patterns that go beyond typical tutorial projects:
 - **AI prompt engineering**: Crafting specific, structured prompts for Gemini to produce consistent, actionable output — not generic chatbot responses.
 - **Separation of concerns**: Refactoring a monolithic 350-line file into modular FastAPI routers with shared services and clean dependency injection.
 - **Dual-tier data architecture**: Understanding when to use Redis (speed, volatility) vs PostgreSQL (durability, relationships) and how they complement each other.
+
+---
+
+## Current Limits
+
+To maintain a focused and highly performant demonstration, the system deliberately accepts the following constraints:
+- **Mission Sync**: The archive sync is capped to 150 records for demo speed.
+- **Live Tracking**: Real-time orbital visualization currently focuses specifically on the ISS.
+- **Deployment**: The Docker deployment is designed as a local-first environment.
+- **AI Analytics**: AI diagnostic reports depend on the external Google Gemini API availability.
+
+---
+
+## Roadmap / Future Enhancements
+
+- **[Issue #1] Add Alembic migrations for schema evolution**: Implement database migrations so the schema can be upgraded seamlessly without dropping tables.
+- **[Issue #2] Code-split frontend globe bundle**: Optimize the initial React load time by lazy-loading the heavy Three.js / Globe visualization components.
+- **[Issue #3] Extend live tracking beyond ISS**: Integrate N2YO or similar APIs to track additional active satellites in orbit.
 
 ---
 
