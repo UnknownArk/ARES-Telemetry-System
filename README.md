@@ -7,7 +7,7 @@
 ![Redis](https://img.shields.io/badge/Redis_7-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)
 ![Postgres](https://img.shields.io/badge/PostgreSQL_15-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
-![Gemini](https://img.shields.io/badge/Gemini_2.5_Flash-8E75B2?style=for-the-badge&logo=google&logoColor=white)
+![Gemini](https://img.shields.io/badge/Gemini_Flash_Lite-8E75B2?style=for-the-badge&logo=google&logoColor=white)
 ![Three.js](https://img.shields.io/badge/Three.js-000000?style=for-the-badge&logo=threedotjs&logoColor=white)
 
 ### A.R.E.S. In Action
@@ -60,7 +60,7 @@ Real-time orbital tracking powered by the [Where The ISS At](https://wheretheiss
 - Extensible architecture for tracking additional satellites via N2YO API
 
 ### 🧠 AI Flight Director
-A Generative AI module powered by **Google Gemini 2.5 Flash** that translates raw orbital mechanics into human-readable diagnostic briefs. Responses are cached in Redis for 15 minutes to minimize redundant API calls.
+A Generative AI module powered by **Google Gemini Flash Lite** that translates raw orbital mechanics into human-readable diagnostic briefs. Responses are cached in Redis for 15 minutes to minimize redundant API calls.
 
 - Analyzes live telemetry (altitude, velocity, coordinates)
 - Generates actionable 2-paragraph diagnostic briefs in Markdown
@@ -132,7 +132,7 @@ For a detailed breakdown of the request flow, authentication, telemetry bufferin
               │  Where The ISS At API     │
               │  (Live orbital data)      │
               ├───────────────────────────┤
-              │  Google Gemini 2.5 Flash  │
+              │  Google Gemini Flash Lite │
               │  (AI diagnostic reports)  │
               └───────────────────────────┘
 ```
@@ -152,7 +152,7 @@ For a detailed breakdown of the request flow, authentication, telemetry bufferin
 | **ORM** | SQLAlchemy | Relational mapping with relationship cascades |
 | **Validation** | Pydantic v2 | Request/response schema validation |
 | **Auth** | PyJWT + OAuth2 | Bearer token authentication flow |
-| **AI** | Google GenAI SDK (Gemini 2.5 Flash) | Natural language telemetry analysis |
+| **AI** | Google Gemini via GenAI SDK | Natural language telemetry analysis |
 | **Database** | PostgreSQL 15 | Persistent relational storage with indexing |
 | **Cache** | Redis 7 | In-memory telemetry buffer + AI response cache |
 | **Infrastructure** | Docker Compose | Zero-config container orchestration |

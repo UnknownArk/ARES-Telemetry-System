@@ -84,7 +84,6 @@ export default function MissionArchive() {
               className="w-full bg-zinc-900 border border-zinc-800 rounded-none py-3 pl-10 pr-4 text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500 focus:ring-1 focus:ring-zinc-500 transition-all font-mono text-sm"
             />
           </div>
-          {/* Note: Filter button removed as per review, or kept decorative if explicitly desired. Removed to clear tech debt. */}
         </div>
 
         {/* DATA GRID */}

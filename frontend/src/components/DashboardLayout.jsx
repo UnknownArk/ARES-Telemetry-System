@@ -49,7 +49,7 @@ export default function DashboardLayout() {
             to="/archive" 
             className={({isActive}) => 
               `flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
-                isActive ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                isActive ? 'bg-zinc-800 text-zinc-100 border border-zinc-700' : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent'
               }`
             }
           >
@@ -61,7 +61,7 @@ export default function DashboardLayout() {
             to="/simulations" 
             className={({isActive}) => 
               `flex items-center gap-3 px-3 py-3 rounded-lg transition-colors ${
-                isActive ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20' : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                isActive ? 'bg-zinc-800 text-zinc-100 border border-zinc-700' : 'text-zinc-400 hover:text-white hover:bg-zinc-900 border border-transparent'
               }`
             }
           >
@@ -93,7 +93,6 @@ export default function DashboardLayout() {
           </div>
 
           <div className="pointer-events-auto flex gap-3">
-             {/* Removed dead settings icon */}
           </div>
         </header>
 
