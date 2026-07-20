@@ -49,11 +49,14 @@ class Mission(Base):
     spacecraft_id = Column(
         Integer, ForeignKey("spacecrafts.id", ondelete="SET NULL"), nullable=True
     )
+    external_id = Column(String(100), unique=True, nullable=True, index=True)
     name = Column(String(100), nullable=False, index=True)
     target_destination = Column(String(255), nullable=False)
     status = Column(String(50), default="Planning")
     launch_date = Column(Date)
     objective = Column(Text, nullable=True)
+    image_url = Column(String(500), nullable=True)
+    source_url = Column(String(500), nullable=True)
     created_at = Column(
         DateTime, default=lambda: datetime.datetime.now(datetime.timezone.utc)
     )

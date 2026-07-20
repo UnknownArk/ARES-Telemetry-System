@@ -6,6 +6,7 @@ from auth import verify_admin
 from pydantic import BaseModel, ConfigDict
 from typing import Optional
 from datetime import date
+from sqlalchemy import extract, or_
 
 router = APIRouter()
 
@@ -61,12 +62,51 @@ class SpacecraftCreate(BaseModel):
 
 
 @router.get("/missions")
-def get_all_missions(search: Optional[str] = None, db: Session = Depends(get_db)):
-    query = db.query(DBMission)
+def get_all_missions(
+    search: Optional[str] = None,
+    status: Optional[str] = None,
+    agency: Optional[str] = None,
+    year: Optional[int] = None,
+    limit: int = 50,
+    db: Session = Depends(get_db),
+):
+    query = db.query(DBMission).outerjoin(Spacecraft).outerjoin(Agency)
     if search:
-        query = query.filter(DBMission.name.ilike(f"%{search}%"))
-    missions = query.all()
-    return {"missions": missions}
+        query = query.filter(
+            or_(
+                DBMission.name.ilike(f"%{search}%"),
+                DBMission.objective.ilike(f"%{search}%"),
+                DBMission.target_destination.ilike(f"%{search}%"),
+                Agency.name.ilike(f"%{search}%")
+            )
+        )
+    if status:
+        query = query.filter(DBMission.status.ilike(f"{status}"))
+    if agency:
+        query = query.filter(Agency.name.ilike(f"%{agency}%"))
+    if year:
+        query = query.filter(extract('year', DBMission.launch_date) == year)
+    
+    query = query.order_by(DBMission.launch_date.desc().nulls_last())
+    missions = query.limit(limit).all()
+    
+    result = []
+    for m in missions:
+        m_dict = {
+            "id": m.id,
+            "external_id": m.external_id,
+            "name": m.name,
+            "target_destination": m.target_destination,
+            "status": m.status,
+            "launch_date": str(m.launch_date) if m.launch_date else None,
+            "objective": m.objective,
+            "image_url": m.image_url,
+            "source_url": m.source_url,
+            "agency_name": m.spacecraft.agency.name if m.spacecraft and m.spacecraft.agency else "Unknown Agency"
+        }
+        result.append(m_dict)
+    
+    return {"missions": result}
 
 
 @router.get("/missions/{mission_id}")
@@ -78,12 +118,12 @@ def get_mission(mission_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/missions/{mission_id}/telemetry")
-def get_telemetry(mission_id: int, db: Session = Depends(get_db)):
+def get_telemetry(mission_id: int, limit: int = 10, db: Session = Depends(get_db)):
     telemetry_data = (
         db.query(TelemetryLog)
         .filter(TelemetryLog.mission_id == mission_id)
         .order_by(TelemetryLog.timestamp.desc())
-        .limit(10)
+        .limit(limit)
         .all()
     )
     return {"telemetry": telemetry_data}

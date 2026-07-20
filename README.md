@@ -37,14 +37,14 @@ Standard web applications rely on direct CRUD operations — a client sends data
 
 **A.R.E.S.** was built to solve this problem. Instead of hammering PostgreSQL with rapid inserts, telemetry is captured instantly in an in-memory **Redis** buffer (O(1) writes) and later flushed to **PostgreSQL** via optimized bulk inserts. This dual-tier architecture is the same pattern used in production systems at companies handling real-time data at scale.
 
-Beyond the engineering pipeline, A.R.E.S. is designed as an **all-in-one space exploration hub** — a platform where users can browse humanity's entire history of space missions, track live satellites in real-time on an interactive map, and leverage AI to generate diagnostic reports from raw orbital mechanics.
+Beyond the engineering pipeline, A.R.E.S. is designed as an **all-in-one space exploration hub** — a platform where users can browse a realistic searchable sample of historical and active missions, track live satellites in real-time on an interactive map, and leverage AI to generate diagnostic reports from raw orbital mechanics.
 
 ---
 
 ## Core Features
 
 ### 🗂️ Mission Archive
-A comprehensive database of historical and active space missions — from Apollo 11 to the James Webb Space Telescope. Missions are linked to agencies, spacecraft, and crew members through a fully relational schema with proper foreign key constraints and cascade rules.
+A comprehensive database of space missions — populated via an external sync with the public Launch Library API. This provides a realistic sample of historical and active space missions. Missions are linked to agencies, spacecraft, and crew members through a fully relational schema with proper foreign key constraints and cascade rules.
 
 - Full CRUD operations (Create, Read, Update, Delete)
 - Search and filter by name, agency, status, or destination
@@ -70,10 +70,10 @@ A Generative AI module powered by **Google Gemini Flash Lite** that translates r
 ### ⚡ High-Frequency Ingestion Pipeline
 The engineering centerpiece — a Redis-backed telemetry buffer that decouples data ingestion from database writes.
 
-- **Stream**: Telemetry payloads are pushed to a Redis list (`telemetry_buffer`) in O(1) time
-- **Buffer**: Data accumulates in memory without touching the relational database
-- **Flush**: Admin triggers a batched write. Records are read from Redis, bulk-inserted into PostgreSQL, then trimmed from the buffer after a successful commit.
-- **Why**: This pattern prevents database lock contention under high write loads
+- **Stream**: Simulated high-frequency telemetry payloads (modeling real sensors) are pushed to a Redis list (`telemetry_buffer`) in O(1) time.
+- **Buffer**: Data accumulates in memory without touching the relational database. An API endpoint monitors queue length.
+- **Flush**: Admin triggers a batched write. Records are read from Redis, bulk-inserted into PostgreSQL, then trimmed from the buffer.
+- **Why**: This architectural pattern demonstrates how to prevent database lock contention under high write loads, proving the system's viability for genuine scale.
 
 ### 🔐 Secure Commander Access
 Role-based access control using OAuth2 and JWT (JSON Web Tokens). Public users can browse missions, view live data, and request cached/rate-limited AI analysis. Only authenticated commanders can modify data or trigger telemetry buffer flushes.
@@ -199,7 +199,7 @@ Under high-frequency ingestion (hundreds of writes/second), PostgreSQL acquires 
 |--------|----------|-------------|
 | `GET` | `/` | API health check |
 | `GET` | `/test-db` | PostgreSQL connection test |
-| `GET` | `/missions` | List all missions (supports `?search=` query) |
+| `GET` | `/missions` | List all missions (supports `search`, `status`, `agency`, `year` filters) |
 | `GET` | `/missions/{id}` | Get mission by ID |
 | `GET` | `/missions/{id}/telemetry` | Get last 10 telemetry readings |
 | `GET` | `/missions/{id}/crew` | Get crew manifest |
@@ -237,7 +237,7 @@ ARES-Telemetry-System/
 │   ├── database.py             # SQLAlchemy engine and session factory
 │   ├── models.py               # ORM models (Mission, Scientist, Agency, etc.)
 │   ├── auth.py                 # JWT token generation and verification
-│   ├── seed.py                 # Historical mission data seeder
+│   ├── import_missions.py      # Script to sync real data from Launch Library API
 │   ├── requirements.txt
 │   ├── .env.example            # Environment variable template
 │   └── routes/
@@ -301,13 +301,15 @@ This spins up the entire architecture:
 - FastAPI Backend on port `8000`
 - Vite/React Frontend on port `80` (accessible via Nginx)
 
-### 3. Seed the Database (Optional)
+### 3. Sync Mission Data (Optional)
 
 ```bash
-docker compose exec backend python seed.py
+docker compose exec backend python import_missions.py
 ```
 
-Injects 15 historical missions (Apollo 11, Voyager 1, JWST, Mangalyaan, etc.) into the Postgres database.
+Injects a synced sample (up to 150 missions) from the public Launch Library archive into the Postgres database.
+
+*(Note: If you ever need to reset the database and clear all records, you can wipe the Docker volumes by running `docker compose down -v` and then restarting the stack).*
 
 ### 4. Access the Application
 

@@ -16,9 +16,20 @@ class TelemetryPayload(BaseModel):
     mission_id: int
     parameter_name: str
     parameter_value: float
+    status_level: str = "Nominal"
 
 
 # -- high freq pipelines --
+
+@router.get("/telemetry/buffer/status")
+def get_buffer_status(admin: dict = Depends(verify_admin)):
+    if not redis_client:
+        return {"status": "offline", "count": 0}
+    try:
+        count = redis_client.llen("telemetry_buffer")
+        return {"status": "online", "count": count}
+    except Exception as e:
+        return {"status": "error", "count": 0, "detail": str(e)}
 
 
 @router.post("/telemetry/stream")
@@ -58,6 +69,7 @@ def flush_telemetry_buffer(
                     "mission_id": data["mission_id"],
                     "parameter_name": data["parameter_name"],
                     "parameter_value": data["parameter_value"],
+                    "status_level": data.get("status_level", "Nominal"),
                 }
             )
 
