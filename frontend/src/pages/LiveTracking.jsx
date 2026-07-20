@@ -77,7 +77,7 @@ export default function LiveTracking() {
       }
     } catch (err) {
       console.error(err);
-      toast.error("AI Link Failed. Are you logged in?");
+      toast.error("AI service unavailable or rate limited.");
     } finally {
       setIsGenerating(false);
     }

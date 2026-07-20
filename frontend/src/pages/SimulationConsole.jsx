@@ -229,7 +229,7 @@ export default function SimulationConsole() {
                   className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-zinc-500"
                   required
                 />
-                <p className="text-[10px] font-mono text-zinc-600 mt-1">Number of concurrent records to generate and queue.</p>
+                <p className="text-[10px] font-mono text-zinc-600 mt-1">Number of records to generate and queue.</p>
               </label>
 
               <div className="pt-2">

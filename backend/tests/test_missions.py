@@ -8,7 +8,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret")
 import pytest
 from fastapi.testclient import TestClient
 from main import app
-from database import SessionLocal, engine
+from database import engine
 import models
 
 models.Base.metadata.create_all(bind=engine)
@@ -28,12 +28,12 @@ def setup_test_data(admin_token):
     client.post("/spacecraft", json={"name": "Test Rocket", "classification": "Rocket", "agency_id": 1}, headers={"Authorization": f"Bearer {admin_token}"})
 
     # Create Missions
-    m1 = client.post("/missions", json={
+    client.post("/missions", json={
         "name": "Alpha Mission", "target_destination": "LEO", "spacecraft_id": 1, 
         "launch_date": "2024-01-01", "status": "Success", "objective": "Test 1"
     }, headers={"Authorization": f"Bearer {admin_token}"})
 
-    m2 = client.post("/missions", json={
+    client.post("/missions", json={
         "name": "Beta Mission", "target_destination": "Moon", "spacecraft_id": 1, 
         "launch_date": "2025-01-01", "status": "Planning", "objective": "Test 2"
     }, headers={"Authorization": f"Bearer {admin_token}"})

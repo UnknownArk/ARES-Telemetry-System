@@ -1,6 +1,6 @@
 # A.R.E.S. — Autonomous Relay & Exploration System
 
-> A full-stack space exploration platform built to ingest, buffer, and visualize high-frequency satellite telemetry using a dual-tier database architecture, real-time orbital tracking, and Generative AI.
+> FastAPI + React telemetry system demonstrating Redis-buffered ingestion, Postgres persistence, JWT-protected admin operations, and a public mission archive.
 
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
 ![React](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
@@ -36,9 +36,9 @@
 
 Standard web applications rely on direct CRUD operations — a client sends data, the server writes it to a database, done. This model falls apart under the stress of high-frequency data streams like live satellite telemetry, where hundreds of data points arrive per second and a locked relational database becomes the bottleneck.
 
-**A.R.E.S.** was built to solve this problem. Instead of hammering PostgreSQL with rapid inserts, telemetry is captured instantly in an in-memory **Redis** buffer (O(1) writes) and later flushed to **PostgreSQL** via optimized bulk inserts. This dual-tier architecture is the same pattern used in production systems at companies handling real-time data at scale.
+**A.R.E.S.** was built to solve this problem. Instead of hammering PostgreSQL with rapid inserts, telemetry is captured instantly in an in-memory **Redis** buffer (O(1) writes) and later flushed to **PostgreSQL** via optimized bulk inserts. This dual-tier architecture is a standard pattern for decoupling heavy write streams from persistent storage.
 
-Beyond the engineering pipeline, A.R.E.S. is designed as an **all-in-one space exploration hub** — a platform where users can browse a realistic searchable sample of historical and active missions, track live satellites in real-time on an interactive map, and leverage AI to generate diagnostic reports from raw orbital mechanics.
+A.R.E.S. also features a public mission archive populated by the Launch Library API, a real-time satellite tracker, and an AI diagnostic module.
 
 ---
 
@@ -56,7 +56,7 @@ If you are exploring this repository to understand its technical foundations, ke
 
 ## Core Features
 
-### 🗂️ Mission Archive
+### Mission Archive
 A comprehensive database of space missions — populated via an external sync with the public Launch Library API. This provides a realistic sample of historical and active space missions. Missions are linked to agencies, spacecraft, and crew members through a fully relational schema with proper foreign key constraints and cascade rules.
 
 - Full CRUD operations (Create, Read, Update, Delete)
@@ -64,15 +64,14 @@ A comprehensive database of space missions — populated via an external sync wi
 - Crew manifest management with role assignments
 - Agency and spacecraft registry
 
-### 📡 Live Satellite Tracking
-Real-time orbital tracking powered by the [Where The ISS At](https://wheretheiss.at/) API with a 15-second circuit-breaker and simulated failsafe — the dashboard never goes down, even if the external API collapses.
+### Live Satellite Tracking
+Real-time orbital tracking powered by the [Where The ISS At](https://wheretheiss.at/) API with a 15-second circuit-breaker and simulated fallback.
 
 - Live ISS position, altitude, velocity, and coordinates
 - Interactive world map with satellite positions and orbit visualization
 - Fault-tolerant polling with automatic fallback to simulated telemetry
-- Extensible architecture for tracking additional satellites via N2YO API
 
-### 🧠 AI Flight Director
+### AI Flight Director
 A Generative AI module powered by **Google Gemini Flash Lite** that translates raw orbital mechanics into human-readable diagnostic briefs. Responses are cached in Redis for 15 minutes to minimize redundant API calls.
 
 - Analyzes live telemetry (altitude, velocity, coordinates)
@@ -80,15 +79,15 @@ A Generative AI module powered by **Google Gemini Flash Lite** that translates r
 - Returns status classification (NOMINAL / WARNING)
 - Publicly accessible endpoint with response caching and IP-based rate limiting to control Gemini usage
 
-### ⚡ High-Frequency Ingestion Pipeline
+### High-Frequency Ingestion Pipeline
 The engineering centerpiece — a Redis-backed telemetry buffer that decouples data ingestion from database writes.
 
 - **Stream**: Simulated high-frequency telemetry payloads (modeling real sensors) are pushed to a Redis list (`telemetry_buffer`) in O(1) time.
 - **Buffer**: Data accumulates in memory without touching the relational database. An API endpoint monitors queue length.
 - **Flush**: Admin triggers a batched write. Records are read from Redis, bulk-inserted into PostgreSQL, then trimmed from the buffer.
-- **Why**: This architectural pattern demonstrates how to prevent database lock contention under high write loads, proving the system's viability for genuine scale.
+- **Why**: This architectural pattern demonstrates how to prevent database lock contention under high write loads.
 
-### 🔐 Secure Commander Access
+### Secure Commander Access
 Role-based access control using OAuth2 and JWT (JSON Web Tokens). Public users can browse missions, view live data, and request cached/rate-limited AI analysis. Only authenticated commanders can modify data or trigger telemetry buffer flushes.
 
 - OAuth2 password flow with JWT bearer tokens
@@ -275,7 +274,7 @@ ARES-Telemetry-System/
 
 ### Prerequisites
 - [Docker Desktop](https://www.docker.com/products/docker-desktop) (for PostgreSQL + Redis)
-- [Node.js 18+](https://nodejs.org/)
+- [Node.js 24+](https://nodejs.org/)
 - [Python 3.10+](https://www.python.org/downloads/)
 - [Google Gemini API Key](https://aistudio.google.com/apikey)
 
@@ -371,4 +370,4 @@ To maintain a focused and highly performant demonstration, the system deliberate
 
 ---
 
-*Built as a demonstration of high-throughput system design, fault-tolerant API integration, and production-grade application architecture.*
+*Built as a demonstration of high-throughput system design and fault-tolerant API integration.*
