@@ -5,12 +5,25 @@ import {
   Activity, 
   Terminal, 
   Menu, 
-  User
+  LogOut,
+  LogIn
 } from 'lucide-react';
 import AresLogo from './AresLogo';
+import { useNavigate } from 'react-router-dom';
 
 export default function DashboardLayout() {
   const [missionClock, setMissionClock] = useState(() => new Date().toISOString().slice(11, 19));
+  const navigate = useNavigate();
+  const token = localStorage.getItem('token');
+
+  const handleAuthAction = () => {
+    if (token) {
+      localStorage.removeItem('token');
+      navigate('/login');
+    } else {
+      navigate('/login');
+    }
+  };
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -71,9 +84,21 @@ export default function DashboardLayout() {
         </nav>
 
         <div className="p-4 border-t border-zinc-900">
-          <button className="flex items-center justify-center md:justify-start gap-3 w-full px-3 py-2 text-zinc-400 hover:text-white">
-            <User className="w-5 h-5" />
-            <span className="hidden md:block text-sm">Commander</span>
+          <button 
+            onClick={handleAuthAction}
+            className="flex items-center justify-center md:justify-start gap-3 w-full px-3 py-2 text-zinc-400 hover:text-white transition-colors"
+          >
+            {token ? (
+              <>
+                <LogOut className="w-5 h-5" />
+                <span className="hidden md:block text-sm">Logout</span>
+              </>
+            ) : (
+              <>
+                <LogIn className="w-5 h-5" />
+                <span className="hidden md:block text-sm">Login</span>
+              </>
+            )}
           </button>
         </div>
       </aside>

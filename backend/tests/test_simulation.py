@@ -52,6 +52,8 @@ def test_telemetry_flush_preserves_status_level(mock_redis, admin_token):
         json.dumps({"mission_id": 1, "parameter_name": "Temp", "parameter_value": 72.0, "status_level": "Nominal"})
     ]
     
+    # Ensure agency 1 exists for FK constraints
+    client.post("/agencies", json={"name": "Test Agency", "country": "USA", "description": "Desc"}, headers={"Authorization": f"Bearer {admin_token}"})
     # Ensure mission 1 exists for FK constraints
     client.post("/spacecraft", json={"name": "Ship", "classification": "A", "agency_id": 1}, headers={"Authorization": f"Bearer {admin_token}"})
     client.post("/missions", json={
@@ -61,6 +63,13 @@ def test_telemetry_flush_preserves_status_level(mock_redis, admin_token):
 
     response = client.post("/telemetry/flush", headers={"Authorization": f"Bearer {admin_token}"})
     assert response.status_code == 200
+    
+    data = response.json()
+    assert data["flushed"] == 2
+    assert data["nominal"] == 1
+    assert data["warning"] == 0
+    assert data["critical"] == 1
+    assert data["primary_risk"] == "O2"
     
     # Verify in DB via GET telemetry
     res = client.get("/missions/1/telemetry?limit=5")

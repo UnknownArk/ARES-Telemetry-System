@@ -7,6 +7,7 @@ import json
 import uuid
 from auth import verify_admin
 from models import TelemetryLog
+from collections import Counter
 
 
 router = APIRouter()
@@ -62,22 +63,44 @@ def flush_telemetry_buffer(
             return {"message": "Buffer is empty."}
 
         mappings = []
+        counts = {"Nominal": 0, "Warning": 0, "Critical": 0}
+        risk_params = Counter()
+
         for item in raw_data:
             data = json.loads(item)
+            status = data.get("status_level", "Nominal")
             mappings.append(
                 {
                     "mission_id": data["mission_id"],
                     "parameter_name": data["parameter_name"],
                     "parameter_value": data["parameter_value"],
-                    "status_level": data.get("status_level", "Nominal"),
+                    "status_level": status,
                 }
             )
+            
+            if status in counts:
+                counts[status] += 1
+            else:
+                counts["Nominal"] += 1
+                
+            if status in ["Warning", "Critical"]:
+                risk_params[data["parameter_name"]] += 1
 
         db.bulk_insert_mappings(TelemetryLog, mappings)
         db.commit()
         # Remove only the items read before this flush; records appended during the flush remain queued.
         redis_client.ltrim("telemetry_buffer", len(raw_data), -1)
-        return {"message": f"Successfully flushed {len(mappings)} records."}
+        
+        primary_risk = risk_params.most_common(1)[0][0] if risk_params else "None"
+        
+        return {
+            "message": f"Successfully flushed {len(mappings)} records.",
+            "flushed": len(mappings),
+            "nominal": counts["Nominal"],
+            "warning": counts["Warning"],
+            "critical": counts["Critical"],
+            "primary_risk": primary_risk
+        }
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail="Write failed: " + str(e))

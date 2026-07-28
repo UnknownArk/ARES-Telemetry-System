@@ -27,7 +27,7 @@ The system must handle high-frequency live telemetry without overwhelming the pr
 3. Simultaneously, any telemetry streamed via `POST /telemetry/stream` (e.g., from a simulation script) is caught by the backend.
 4. Instead of writing directly to PostgreSQL, the backend pushes payloads into a **Redis List** (`telemetry_buffer`) using `O(1)` list appends.
 5. The `SimulationConsole.jsx` UI polls `GET /telemetry/buffer/status` to monitor the queue length in real-time.
-6. An administrator manually triggers `POST /telemetry/flush`. The backend pops all records from Redis and executes an optimized bulk-insert into PostgreSQL. This prevents write-locking and DB saturation during high-throughput events.
+6. An administrator manually triggers `POST /telemetry/flush`. The backend pops all records from Redis, summarizes them by anomaly labels (Warning/Critical statuses), calculates a primary risk factor, and executes an optimized bulk-insert into PostgreSQL. This prevents write-locking and DB saturation during high-throughput events, while simultaneously generating a Mission Health Summary.
 
 ## 4. Authentication Flow
 
@@ -39,7 +39,7 @@ A.R.E.S. uses stateless JWT (JSON Web Tokens) for security.
 
 ## 5. AI Cache & Rate-Limit Flow
 
-The `POST /live/iss/analyze` endpoint uses Google's Gemini AI to analyze live coordinates and provide a flight director diagnostic. To prevent API abuse and reduce latency:
+The `POST /live/iss/analyze` endpoint uses Google's Gemini Flash AI to analyze live coordinates and provide a flight director diagnostic. To prevent API abuse and reduce latency:
 1. **Rate Limiting**: The backend checks the client's IP address against Redis. It enforces a strict limit (e.g., 3 requests per minute). If exceeded, a `429 Too Many Requests` is returned immediately.
 2. **Caching**: If within the rate limit, the backend checks Redis for an existing, unexpired report. If found, the cached report is returned in `O(1)` time.
 3. **AI Generation**: If no cache exists, the backend queries the Gemini API. The response is then saved to Redis with a 15-minute expiration time (`TTL`).

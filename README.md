@@ -7,7 +7,7 @@
 ![Redis](https://img.shields.io/badge/Redis_7-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)
 ![Postgres](https://img.shields.io/badge/PostgreSQL_15-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
-![Gemini](https://img.shields.io/badge/Gemini_Flash_Lite-8E75B2?style=for-the-badge&logo=google&logoColor=white)
+![Gemini](https://img.shields.io/badge/Gemini_Flash-8E75B2?style=for-the-badge&logo=google&logoColor=white)
 ![Three.js](https://img.shields.io/badge/Three.js-000000?style=for-the-badge&logo=threedotjs&logoColor=white)
 
 ### A.R.E.S. In Action
@@ -46,9 +46,9 @@ A.R.E.S. also features a public mission archive populated by the Launch Library 
 
 If you are exploring this repository to understand its technical foundations, keep the following core engineering concepts in mind:
 
-- *"A.R.E.S. is a FastAPI and React full-stack telemetry system."*
-- *"The core engineering problem it solves is high-frequency database writes."*
-- *"Instead of bottlenecking a relational database, Redis absorbs data bursts in memory, then FastAPI bulk-flushes the records to Postgres."*
+- *"A.R.E.S. is a FastAPI and React full-stack telemetry and analytics system."*
+- *"The core engineering problem it solves is high-frequency database writes and post-flight anomaly detection."*
+- *"Instead of bottlenecking a relational database, Redis absorbs data bursts in memory, then FastAPI bulk-flushes the records to Postgres while summarizing anomaly labels (Warning/Critical status)."*
 - *"The Mission Archive is a public-facing dataset backed by real synced Launch Library data."*
 - *"Admin-only endpoints protect mutations and the telemetry flushing pipeline, using JWT."*
 
@@ -57,7 +57,7 @@ If you are exploring this repository to understand its technical foundations, ke
 ## Core Features
 
 ### Mission Archive
-A comprehensive database of space missions — populated via an external sync with the public Launch Library API. This provides a realistic sample of historical and active space missions. Missions are linked to agencies, spacecraft, and crew members through a fully relational schema with proper foreign key constraints and cascade rules.
+A searchable database of space missions populated via an external sync with the public Launch Library API. It provides a realistic sample of historical and active space missions. Missions are linked to agencies, spacecraft, and crew members through a relational schema with foreign key constraints and cascade rules.
 
 - Full CRUD operations (Create, Read, Update, Delete)
 - Search and filter by name, agency, status, or destination
@@ -72,20 +72,20 @@ Real-time orbital tracking powered by the [Where The ISS At](https://wheretheiss
 - Fault-tolerant polling with automatic fallback to simulated telemetry
 
 ### AI Flight Director
-A Generative AI module powered by **Google Gemini Flash Lite** that translates raw orbital mechanics into human-readable diagnostic briefs. Responses are cached in Redis for 15 minutes to minimize redundant API calls.
+A Generative AI module powered by **Google Gemini Flash** that translates raw orbital mechanics into human-readable diagnostic briefs. Responses are cached in Redis for 15 minutes to minimize redundant API calls.
 
 - Analyzes live telemetry (altitude, velocity, coordinates)
 - Generates actionable 2-paragraph diagnostic briefs in Markdown
 - Returns status classification (NOMINAL / WARNING)
 - Publicly accessible endpoint with response caching and IP-based rate limiting to control Gemini usage
 
-### High-Frequency Ingestion Pipeline
-The engineering centerpiece — a Redis-backed telemetry buffer that decouples data ingestion from database writes.
+### Mission Anomaly Analysis Engine (High-Frequency Ingestion)
+The engineering centerpiece — a Redis-backed telemetry buffer that transforms raw data streams into actionable post-flight analytics.
 
-- **Stream**: Simulated high-frequency telemetry payloads (modeling real sensors) are pushed to a Redis list (`telemetry_buffer`) in O(1) time.
+- **Stream**: High-frequency telemetry payloads are pushed to a Redis list (`telemetry_buffer`) in O(1) time.
 - **Buffer**: Data accumulates in memory without touching the relational database. An API endpoint monitors queue length.
-- **Flush**: Admin triggers a batched write. Records are read from Redis, bulk-inserted into PostgreSQL, then trimmed from the buffer.
-- **Why**: This architectural pattern demonstrates how to prevent database lock contention under high write loads.
+- **Flush & Analyze**: Admin triggers a batched write. Records are read from Redis, summarized by anomaly labels (Warning/Critical), and bulk-inserted into PostgreSQL. The backend calculates the Primary Risk factor and returns a Mission Health Summary.
+- **Why**: This architectural pattern demonstrates how to prevent database lock contention under high write loads while summarizing anomaly statistics on the data.
 
 ### Secure Commander Access
 Role-based access control using OAuth2 and JWT (JSON Web Tokens). Public users can browse missions, view live data, and request cached/rate-limited AI analysis. Only authenticated commanders can modify data or trigger telemetry buffer flushes.
@@ -144,7 +144,7 @@ For a detailed breakdown of the request flow, authentication, telemetry bufferin
               │  Where The ISS At API     │
               │  (Live orbital data)      │
               ├───────────────────────────┤
-              │  Google Gemini Flash Lite │
+              │  Google Gemini Flash      │
               │  (AI diagnostic reports)  │
               └───────────────────────────┘
 ```
@@ -164,7 +164,7 @@ For a detailed breakdown of the request flow, authentication, telemetry bufferin
 | **ORM** | SQLAlchemy | Relational mapping with relationship cascades |
 | **Validation** | Pydantic v2 | Request/response schema validation |
 | **Auth** | PyJWT + OAuth2 | Bearer token authentication flow |
-| **AI** | Google Gemini via GenAI SDK | Natural language telemetry analysis |
+| **AI** | Google Gemini Flash via GenAI SDK | Natural language telemetry analysis |
 | **Database** | PostgreSQL 15 | Persistent relational storage with indexing |
 | **Cache** | Redis 7 | In-memory telemetry buffer + AI response cache |
 | **Infrastructure** | Docker Compose | Zero-config container orchestration |
@@ -173,10 +173,10 @@ For a detailed breakdown of the request flow, authentication, telemetry bufferin
 
 ## Data Flow: Telemetry Ingestion Pipeline
 
-This is the engineering pattern that separates A.R.E.S. from standard CRUD applications:
+This is the core engineering pattern behind A.R.E.S.:
 
 ```
-Step 1: STREAM                Step 2: BUFFER              Step 3: FLUSH
+Step 1: STREAM                Step 2: BUFFER              Step 3: FLUSH & ANALYZE
 ─────────────────           ─────────────────          ─────────────────
 Client sends                Redis stores in            Admin triggers
 POST /telemetry/stream      in-memory list             POST /telemetry/flush
@@ -184,9 +184,11 @@ POST /telemetry/stream      in-memory list             POST /telemetry/flush
         ▼                         ▼                          ▼
    ┌─────────┐              ┌──────────┐              ┌──────────┐
    │ FastAPI  │──rpush()──▶ │  Redis   │──lrange()──▶ │ FastAPI  │
-   │ receives │   O(1)      │  Buffer  │  + ltrim()   │ reads &  │
-   │ payload  │             │          │              │ clears   │
-   └─────────┘              └──────────┘              └────┬─────┘
+   │ receives │   O(1)      │  Buffer  │  + ltrim()   │ reads,   │
+   │ payload  │             │          │              │ parses   │
+   └─────────┘              └──────────┘              │ risks &  │
+                                                      │ clears   │
+                                                      └────┬─────┘
                                                            │
                                                     bulk_insert_mappings()
                                                            │
@@ -345,7 +347,7 @@ Building A.R.E.S. taught me patterns that go beyond typical tutorial projects:
 
 ## Current Limits
 
-To maintain a focused and highly performant demonstration, the system deliberately accepts the following constraints:
+To keep the demo focused and reproducible, the system deliberately accepts the following constraints:
 - **Mission Sync**: The archive sync is capped to 150 records for demo speed.
 - **Live Tracking**: Real-time orbital visualization currently focuses specifically on the ISS.
 - **Deployment**: The Docker deployment is designed as a local-first environment.

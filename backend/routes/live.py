@@ -73,8 +73,13 @@ def analyze_live_iss(request: Request):
     """
 
     try:
-        response = gemini_client.models.generate_content(
-            model="gemini-flash-lite-latest",
+        from google import genai
+        import os
+        
+        # Instantiate locally to avoid Uvicorn thread/event-loop dropped connections
+        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        response = client.models.generate_content(
+            model="gemini-flash-latest",
             contents=prompt,
         )
         redis_client.setex("mission:iss:ai_report", 900, response.text)  # 900=15 min

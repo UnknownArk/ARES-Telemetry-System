@@ -118,10 +118,14 @@ def get_mission(mission_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/missions/{mission_id}/telemetry")
-def get_telemetry(mission_id: int, limit: int = 10, db: Session = Depends(get_db)):
+def get_telemetry(mission_id: int, limit: int = 10, anomaly_only: bool = False, db: Session = Depends(get_db)):
+    query = db.query(TelemetryLog).filter(TelemetryLog.mission_id == mission_id)
+    
+    if anomaly_only:
+        query = query.filter(TelemetryLog.status_level != 'Nominal')
+        
     telemetry_data = (
-        db.query(TelemetryLog)
-        .filter(TelemetryLog.mission_id == mission_id)
+        query
         .order_by(TelemetryLog.timestamp.desc())
         .limit(limit)
         .all()
