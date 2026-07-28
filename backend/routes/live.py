@@ -1,6 +1,6 @@
 import requests
 from fastapi import APIRouter, HTTPException, Request
-from services import redis_client, gemini_client
+from services import redis_client
 
 router = APIRouter()
 
