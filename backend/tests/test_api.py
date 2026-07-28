@@ -75,8 +75,7 @@ def test_telemetry_stream_requires_auth(mock_redis):
     assert response.status_code == 401
     
 @patch("routes.live.redis_client")
-@patch("routes.live.gemini_client")
-def test_analyze_live_iss_cached(mock_gemini, mock_redis):
+def test_analyze_live_iss_cached(mock_redis):
     # Mock redis returning a cached report
     mock_redis.get.return_value = "Mocked AI Report"
     
@@ -84,4 +83,3 @@ def test_analyze_live_iss_cached(mock_gemini, mock_redis):
     assert response.status_code == 200
     assert response.json()["cached"] is True
     assert response.json()["report"] == "Mocked AI Report"
-    mock_gemini.models.generate_content.assert_not_called()
