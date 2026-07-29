@@ -1,9 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from typing import List
-import asyncio
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
-from database import get_db
 from services import redis_client
 import json
 import uuid
@@ -30,8 +27,8 @@ class ConnectionManager:
         for connection in self.active_connections:
             try:
                 await connection.send_json(message)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"WebSocket broadcast error: {e}")
 
 manager = ConnectionManager()
 

@@ -83,9 +83,10 @@ A Generative AI module powered by **Google Gemini Flash** that translates raw or
 The engineering centerpiece — a Redis-backed telemetry buffer that transforms raw data streams into actionable post-flight analytics.
 
 - **Stream**: High-frequency telemetry payloads are pushed to a Redis list (`telemetry_buffer`) in O(1) time.
-- **Buffer**: Data accumulates in memory without touching the relational database. An API endpoint monitors queue length.
-- **Flush & Analyze**: Admin triggers a batched write. Records are read from Redis, summarized by anomaly labels (Warning/Critical), and bulk-inserted into PostgreSQL. The backend calculates the Primary Risk factor and returns a Mission Health Summary.
-- **Why**: This architectural pattern demonstrates how to prevent database lock contention under high write loads while summarizing anomaly statistics on the data.
+- **Buffer**: Data accumulates in memory without touching the relational database.
+- **Flush & Analyze (Background Worker)**: A FastAPI `asyncio.to_thread` background worker runs periodically, reading all accumulated records from Redis. It summarizes anomaly labels (Warning/Critical) and bulk-inserts them into PostgreSQL, leaving the async event loop unblocked.
+- **WebSocket Broadcast**: The worker broadcasts the post-flight analytics and a live throughput metric back to the React UI via WebSockets, eliminating polling overhead and creating a live dashboard.
+- **Why**: This architectural pattern demonstrates how to prevent database lock contention under high write loads by decoupling rapid ingestion from scheduled bulk-persistence.
 
 ### Secure Commander Access
 Role-based access control using OAuth2 and JWT (JSON Web Tokens). Public users can browse missions, view live data, and request cached/rate-limited AI analysis. Only authenticated commanders can modify data or trigger telemetry buffer flushes.
