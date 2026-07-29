@@ -89,7 +89,7 @@ The engineering centerpiece — a Redis-backed telemetry buffer that transforms 
 - **Why**: This architectural pattern demonstrates how to prevent database lock contention under high write loads by decoupling rapid ingestion from scheduled bulk-persistence.
 
 ### Secure Commander Access
-Role-based access control using OAuth2 and JWT (JSON Web Tokens). Public users can browse missions, view live data, and request cached/rate-limited AI analysis. Only authenticated commanders can modify data or trigger telemetry buffer flushes.
+Role-based access control using OAuth2 and JWT (JSON Web Tokens). Public users can browse missions, view live data, and request cached/rate-limited AI analysis. Only authenticated commanders can modify data or stream telemetry into the buffer.
 
 - OAuth2 password flow with JWT bearer tokens
 - 2-hour token expiry with automatic re-authentication
@@ -109,7 +109,7 @@ For a detailed breakdown of the request flow, authentication, telemetry bufferin
 │  Landing ──── Mission Archive ──── Live Tracking ──── Sims  │
 │     │              │                    │              │     │
 │     └──────────────┴────────────────────┴──────────────┘     │
-│                           │ Axios                            │
+│                           │ Axios & WebSockets               │
 ├───────────────────────────┼──────────────────────────────────┤
 │                     BACKEND (FastAPI)                        │
 │                           │                                  │
@@ -179,8 +179,8 @@ This is the core engineering pattern behind A.R.E.S.:
 ```
 Step 1: STREAM                Step 2: BUFFER              Step 3: FLUSH & ANALYZE
 ─────────────────           ─────────────────          ─────────────────
-Client sends                Redis stores in            Admin triggers
-POST /telemetry/stream      in-memory list             POST /telemetry/flush
+Client sends                Redis stores in            Background worker
+POST /telemetry/stream      in-memory list             runs every 5 sec
         │                         │                          │
         ▼                         ▼                          ▼
    ┌─────────┐              ┌──────────┐              ┌──────────┐
