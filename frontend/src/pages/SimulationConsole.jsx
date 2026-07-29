@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
-import { Activity, DatabaseZap, Lock, Send, RefreshCw, ShieldAlert } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Activity, Lock, Send, RefreshCw, ShieldAlert } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import axios from 'axios';
 
@@ -7,11 +7,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function SimulationConsole() {
   const [missionId, setMissionId] = useState('1');
-  const [streamCount, setStreamCount] = useState(50);
+  const missionIdRef = useRef('1');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [isFlushing, setIsFlushing] = useState(false);
+  const [simulationInterval, setSimulationInterval] = useState(null);
   const [bufferCount, setBufferCount] = useState(0);
-  const [bufferStatus, setBufferStatus] = useState('offline');
+  const [bufferStatus, setBufferStatus] = useState('online');
   const [recentTelemetry, setRecentTelemetry] = useState([]);
   const [flushReport, setFlushReport] = useState(null);
   
@@ -39,36 +39,6 @@ export default function SimulationConsole() {
     fetchMissions();
   }, []);
 
-  // Poll Redis Buffer Status
-  const checkBufferStatus = useCallback(async () => {
-    const headers = authHeaders();
-    if (!headers.Authorization) {
-      setBufferStatus('offline');
-      return;
-    }
-
-    try {
-      const res = await fetch(`${API_URL}/telemetry/buffer/status`, {
-        headers,
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setBufferCount(data.count);
-        setBufferStatus(data.status);
-      } else {
-        setBufferStatus('offline');
-      }
-    } catch {
-      setBufferStatus('offline');
-    }
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    checkBufferStatus();
-    const interval = setInterval(checkBufferStatus, 2000);
-    return () => clearInterval(interval);
-  }, [checkBufferStatus]);
 
   // Fetch recent persisted telemetry anomalies
   const fetchRecentTelemetry = useCallback(async () => {
@@ -84,6 +54,31 @@ export default function SimulationConsole() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchRecentTelemetry();
+  }, [fetchRecentTelemetry]);
+
+  // Sync ref when state changes so the setInterval closure always has the latest ID
+  useEffect(() => {
+    missionIdRef.current = missionId;
+  }, [missionId]);
+
+  // WebSocket Connection
+  useEffect(() => {
+    const wsUrl = API_URL.replace('http', 'ws') + '/ws/telemetry';
+    const ws = new WebSocket(wsUrl);
+    
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.flushed) {
+         setFlushReport(data);
+         setBufferCount(0); // Reset visual buffer when worker flushes
+         fetchRecentTelemetry();
+      }
+    };
+
+    ws.onopen = () => setBufferStatus('online');
+    ws.onclose = () => setBufferStatus('offline');
+
+    return () => ws.close();
   }, [fetchRecentTelemetry]);
 
 
@@ -133,83 +128,49 @@ export default function SimulationConsole() {
     return batches;
   };
 
-  const streamTelemetry = async (event) => {
+  const toggleSimulation = (event) => {
     event.preventDefault();
-    setIsStreaming(true);
-    setFlushReport(null);
-    
-    const count = Number(streamCount) || 50;
-    const batch = generateRealisticTelemetry(missionId, count);
-    let successCount = 0;
-
-    try {
-      // Process in chunks of 50 to avoid network stalling with high batch counts
-      const CHUNK_SIZE = 50;
-      for (let i = 0; i < batch.length; i += CHUNK_SIZE) {
-        const chunk = batch.slice(i, i + CHUNK_SIZE);
-        await Promise.all(chunk.map(async (payload) => {
-          const response = await fetch(`${API_URL}/telemetry/stream`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...authHeaders(),
-            },
-            body: JSON.stringify(payload),
-          });
-          if (response.ok) {
-            successCount++;
-          } else if (response.status === 401) {
-            throw new Error("Session expired. Please log in again.");
-          }
-        }));
-      }
-      
-      toast.success(`Buffered ${successCount} telemetry packets in Redis`);
-      checkBufferStatus();
-    } catch (err) {
-      toast.error(err.message || "Stream failed. Check authentication.");
-      if (err.message === "Session expired. Please log in again.") {
-        localStorage.removeItem("token");
-        window.location.href = "/login";
-      }
-    } finally {
+    if (simulationInterval) {
+      clearInterval(simulationInterval);
+      setSimulationInterval(null);
       setIsStreaming(false);
+      toast.success("Simulation Stopped.");
+    } else {
+      setIsStreaming(true);
+      toast.success("Simulation Started! Pumping 50 records/sec...");
+      const id = setInterval(async () => {
+        // Fire 5 payloads every 100ms = 50 records/sec using the ref to avoid stale closures
+        const payloads = generateRealisticTelemetry(missionIdRef.current, 5);
+        
+        const results = await Promise.all(payloads.map(payload => 
+          fetch(`${API_URL}/telemetry/stream`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...authHeaders() },
+            body: JSON.stringify(payload)
+          }).then(res => {
+            if (res.status === 401) {
+              localStorage.removeItem('token');
+              window.location.href = '/login';
+              return false;
+            }
+            return res.ok;
+          }).catch(() => false)
+        ));
+        
+        const successCount = results.filter(Boolean).length;
+        if (successCount > 0) {
+          setBufferCount(prev => prev + successCount);
+        }
+      }, 100);
+      setSimulationInterval(id);
     }
   };
 
-  const flushTelemetry = async () => {
-    setIsFlushing(true);
-
-    try {
-      const response = await fetch(`${API_URL}/telemetry/flush`, {
-        method: 'POST',
-        headers: authHeaders(),
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        if (response.status === 401) throw new Error("Session expired. Please log in again.");
-        throw new Error(data.detail || 'Telemetry flush failed.');
-      }
-
-      if (data.flushed !== undefined) {
-        setFlushReport(data);
-      } else {
-        setFlushReport(null);
-      }
-      toast.success(data.message);
-      checkBufferStatus();
-      fetchRecentTelemetry();
-    } catch (error) {
-      toast.error(error.message);
-      if (error.message === "Session expired. Please log in again.") {
-        localStorage.removeItem("token");
-        window.location.href = "/login";
-      }
-    } finally {
-      setIsFlushing(false);
-    }
-  };
+  useEffect(() => {
+    return () => {
+      if (simulationInterval) clearInterval(simulationInterval);
+    };
+  }, [simulationInterval]);
 
   return (
     <div className="w-full h-full bg-black p-6 md:p-12 overflow-y-auto">
@@ -219,7 +180,7 @@ export default function SimulationConsole() {
             SIMULATION CONSOLE
           </h1>
           <p className="text-zinc-500 font-mono text-sm">
-            Architecture demonstration: High-frequency data generation -&gt; Redis Buffer -&gt; Batch Flush -&gt; Postgres Database.
+            Architecture demonstration: High-frequency telemetry ingestion handled by Redis, processed by a background worker, and broadcasted via WebSockets.
           </p>
         </header>
 
@@ -227,7 +188,7 @@ export default function SimulationConsole() {
           
           {/* GENERATOR */}
           <div className="lg:col-span-1 flex flex-col gap-6">
-            <form onSubmit={streamTelemetry} className="panel-glass p-6 space-y-5 flex-1">
+            <form onSubmit={toggleSimulation} className="panel-glass p-6 space-y-5 flex-1">
               <div className="flex items-center gap-3 border-b border-zinc-800 pb-4">
                 <Activity className="w-5 h-5 text-zinc-100" />
                 <h2 className="text-sm font-bold tracking-widest text-zinc-100 font-mono">
@@ -249,29 +210,25 @@ export default function SimulationConsole() {
                 </select>
               </label>
 
-              <label className="block">
-                <span className="block text-xs font-mono text-zinc-500 mb-2">BATCH COUNT</span>
-                <input
-                  type="number"
-                  min="1"
-                  max="1000"
-                  value={streamCount}
-                  onChange={(event) => setStreamCount(event.target.value)}
-                  className="w-full bg-zinc-950 border border-zinc-800 rounded px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-zinc-500"
-                  required
-                />
-                <p className="text-[10px] font-mono text-zinc-600 mt-1">Number of records to generate and queue.</p>
-              </label>
-
               <div className="pt-2">
                 <button
                   type="submit"
-                  disabled={isStreaming}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-zinc-100 hover:bg-white disabled:bg-zinc-800 text-black font-bold font-mono text-xs rounded tracking-widest transition-colors"
+                  className={`w-full inline-flex items-center justify-center gap-2 px-4 py-3 font-bold font-mono text-xs rounded tracking-widest transition-colors ${
+                    isStreaming 
+                      ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse' 
+                      : 'bg-zinc-100 hover:bg-white text-black'
+                  }`}
                 >
                   <Send className="w-4 h-4" />
-                  {isStreaming ? 'PUMPING DATA...' : 'STREAM TO REDIS'}
+                  {isStreaming ? 'STOP SIMULATION' : 'START AUTO-FIRE (50/sec)'}
                 </button>
+                
+                {isStreaming && (
+                  <div className="mt-4 flex items-center justify-between p-3 bg-red-500/10 border border-red-500/20 rounded">
+                    <span className="text-[10px] text-red-400 font-mono tracking-widest">LIVE THROUGHPUT</span>
+                    <span className="text-sm font-bold text-red-500 font-mono animate-pulse">50 REQ/SEC</span>
+                  </div>
+                )}
               </div>
             </form>
           </div>
@@ -292,58 +249,52 @@ export default function SimulationConsole() {
                 </div>
               </div>
 
-              {flushReport ? (
-                <div className="flex flex-col gap-4 mb-6">
-                  <div className="flex justify-between items-end border-b border-zinc-800/50 pb-2">
-                    <span className="text-xs text-zinc-500 font-mono">STATUS</span>
-                    <span className={`text-lg font-bold font-mono ${flushReport.critical > 0 ? 'text-red-500' : flushReport.warning > 0 ? 'text-yellow-500' : 'text-emerald-500'}`}>
+              <div className="flex-1 flex flex-col items-center justify-center py-2">
+                <span className="text-6xl font-bold font-mono text-zinc-100 mb-2">{bufferCount}</span>
+                <span className="text-xs font-mono tracking-widest text-zinc-500">RECORDS IN MEMORY BUFFER</span>
+              </div>
+
+              {flushReport && (
+                <div className="flex flex-col gap-3 mb-2 pt-4 border-t border-zinc-800/50">
+                  <div className="flex justify-between items-end pb-2">
+                    <span className="text-xs text-zinc-500 font-mono">LAST BATCH FLUSHED</span>
+                    <span className={`text-sm font-bold font-mono ${flushReport.critical > 0 ? 'text-red-500' : flushReport.warning > 0 ? 'text-yellow-500' : 'text-emerald-500'}`}>
                       {flushReport.critical > 0 ? 'CRITICAL' : flushReport.warning > 0 ? 'WARNING' : 'NOMINAL'}
                     </span>
                   </div>
                   
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-4 gap-2">
                     <div>
-                      <div className="text-xs text-zinc-500 font-mono">FLUSHED</div>
-                      <div className="text-xl font-bold text-zinc-100 font-mono">{flushReport.flushed}</div>
+                      <div className="text-[10px] text-zinc-500 font-mono">COUNT</div>
+                      <div className="text-sm font-bold text-zinc-100 font-mono">{flushReport.flushed}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-zinc-500 font-mono">NOMINAL</div>
-                      <div className="text-xl font-bold text-emerald-500 font-mono">{flushReport.nominal}</div>
+                      <div className="text-[10px] text-zinc-500 font-mono">NOM</div>
+                      <div className="text-sm font-bold text-emerald-500 font-mono">{flushReport.nominal}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-zinc-500 font-mono">WARNING</div>
-                      <div className="text-xl font-bold text-yellow-500 font-mono">{flushReport.warning}</div>
+                      <div className="text-[10px] text-zinc-500 font-mono">WARN</div>
+                      <div className="text-sm font-bold text-yellow-500 font-mono">{flushReport.warning}</div>
                     </div>
                     <div>
-                      <div className="text-xs text-zinc-500 font-mono">CRITICAL</div>
-                      <div className="text-xl font-bold text-red-500 font-mono">{flushReport.critical}</div>
+                      <div className="text-[10px] text-zinc-500 font-mono">CRIT</div>
+                      <div className="text-sm font-bold text-red-500 font-mono">{flushReport.critical}</div>
                     </div>
                   </div>
                   
                   {flushReport.primary_risk !== 'None' && (
-                    <div className="mt-2 bg-red-500/10 border border-red-500/20 p-2 rounded">
-                      <span className="text-[10px] text-red-400 font-mono block">PRIMARY RISK DETECTED</span>
-                      <span className="text-sm font-bold text-red-500 font-mono">{flushReport.primary_risk}</span>
+                    <div className="mt-1 bg-red-500/10 border border-red-500/20 p-2 rounded">
+                      <span className="text-[10px] text-red-400 font-mono block">PRIMARY RISK (MAP-REDUCE)</span>
+                      <span className="text-xs font-bold text-red-500 font-mono">{flushReport.primary_risk}</span>
                     </div>
                   )}
                 </div>
-              ) : (
-                <div className="flex-1 flex flex-col items-center justify-center py-8">
-                  <span className="text-6xl font-bold font-mono text-zinc-100 mb-2">{bufferCount}</span>
-                  <span className="text-xs font-mono tracking-widest text-zinc-500">RECORDS BUFFERED</span>
-                </div>
               )}
 
-              <div className="pt-4 border-t border-zinc-800 mt-auto">
-                <button
-                  type="button"
-                  onClick={flushTelemetry}
-                  disabled={isFlushing || bufferCount === 0}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-zinc-900 hover:bg-zinc-800 disabled:bg-zinc-950 text-zinc-200 font-bold font-mono text-xs rounded tracking-widest border border-zinc-800 transition-colors"
-                >
-                  <DatabaseZap className="w-4 h-4 text-emerald-500" />
-                  {isFlushing ? 'EXECUTING BULK INSERT...' : 'FLUSH TO POSTGRES'}
-                </button>
+              <div className="pt-4 border-t border-zinc-800 mt-auto text-center">
+                <p className="text-[10px] font-mono text-zinc-600 uppercase tracking-widest">
+                  Automatic Background Worker Active • WebSockets Connected
+                </p>
               </div>
             </div>
           </div>

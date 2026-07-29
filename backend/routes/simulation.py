@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from typing import List
+import asyncio
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from database import get_db
@@ -8,9 +10,40 @@ import uuid
 from auth import verify_admin
 from models import TelemetryLog
 from collections import Counter
-
+from database import SessionLocal
 
 router = APIRouter()
+
+class ConnectionManager:
+    def __init__(self):
+        self.active_connections: List[WebSocket] = []
+
+    async def connect(self, websocket: WebSocket):
+        await websocket.accept()
+        self.active_connections.append(websocket)
+
+    def disconnect(self, websocket: WebSocket):
+        if websocket in self.active_connections:
+            self.active_connections.remove(websocket)
+
+    async def broadcast(self, message: dict):
+        for connection in self.active_connections:
+            try:
+                await connection.send_json(message)
+            except Exception:
+                pass
+
+manager = ConnectionManager()
+
+@router.websocket("/ws/telemetry")
+async def websocket_endpoint(websocket: WebSocket):
+    await manager.connect(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
 
 
 class TelemetryPayload(BaseModel):
@@ -21,6 +54,7 @@ class TelemetryPayload(BaseModel):
 
 
 # -- high freq pipelines --
+
 
 @router.get("/telemetry/buffer/status")
 def get_buffer_status(admin: dict = Depends(verify_admin)):
@@ -44,18 +78,16 @@ def ingest_telemetry_stream(
     return {"status": "buffered in memory"}
 
 
-@router.post("/telemetry/flush")
-def flush_telemetry_buffer(
-    db: Session = Depends(get_db), admin: dict = Depends(verify_admin)
-):
+def process_telemetry_batch():
     if not redis_client:
-        raise HTTPException(status_code=500, detail="Redis offline.")
+        return {"error": "Redis offline."}
 
     lock_key = "telemetry_buffer:flush_lock"
     lock_token = str(uuid.uuid4())
     if not redis_client.set(lock_key, lock_token, nx=True, ex=30):
-        raise HTTPException(status_code=409, detail="Telemetry flush already in progress.")
+        return {"error": "Flush already in progress"}
 
+    db = SessionLocal()
     try:
         raw_data = redis_client.lrange("telemetry_buffer", 0, -1)
 
@@ -77,12 +109,12 @@ def flush_telemetry_buffer(
                     "status_level": status,
                 }
             )
-            
+
             if status in counts:
                 counts[status] += 1
             else:
                 counts["Nominal"] += 1
-                
+
             if status in ["Warning", "Critical"]:
                 risk_params[data["parameter_name"]] += 1
 
@@ -90,20 +122,30 @@ def flush_telemetry_buffer(
         db.commit()
         # Remove only the items read before this flush; records appended during the flush remain queued.
         redis_client.ltrim("telemetry_buffer", len(raw_data), -1)
-        
+
         primary_risk = risk_params.most_common(1)[0][0] if risk_params else "None"
-        
+
         return {
             "message": f"Successfully flushed {len(mappings)} records.",
             "flushed": len(mappings),
             "nominal": counts["Nominal"],
             "warning": counts["Warning"],
             "critical": counts["Critical"],
-            "primary_risk": primary_risk
+            "primary_risk": primary_risk,
         }
     except Exception as e:
         db.rollback()
-        raise HTTPException(status_code=500, detail="Write failed: " + str(e))
+        return {"error": "Write failed: " + str(e)}
     finally:
+        db.close()
         if redis_client.get(lock_key) == lock_token:
             redis_client.delete(lock_key)
+
+@router.post("/telemetry/flush")
+def flush_telemetry_buffer(
+    admin: dict = Depends(verify_admin)
+):
+    result = process_telemetry_batch()
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+    return result

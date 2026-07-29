@@ -1,4 +1,6 @@
 import os
+import asyncio
+from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -10,14 +12,36 @@ import models
 from auth import create_access_token
 from routes.live import router as live_router
 from routes.archive import router as archive_router
-from routes.simulation import router as simulation_router
+from routes.simulation import router as simulation_router, process_telemetry_batch, manager
 
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), ".env"))
 
 # init db tables
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="A.R.E.S. Command API")
+async def run_telemetry_worker():
+    while True:
+        try:
+            await asyncio.sleep(5)
+            # Run the synchronous flush batch in a thread so it doesn't block the async event loop
+            result = await asyncio.to_thread(process_telemetry_batch)
+            # If records were flushed, broadcast the report to all UI WebSocket clients
+            if result and "flushed" in result and result["flushed"] > 0:
+                await manager.broadcast(result)
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            print(f"Worker Error: {e}")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup: Create the background task
+    task = asyncio.create_task(run_telemetry_worker())
+    yield
+    # Shutdown: Cancel the task gracefully
+    task.cancel()
+
+app = FastAPI(title="A.R.E.S. Command API", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -25,7 +49,7 @@ app.add_middleware(
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "http://localhost",
-        "http://127.0.0.1"
+        "http://127.0.0.1",
     ],
     allow_credentials=True,
     allow_methods=["*"],
