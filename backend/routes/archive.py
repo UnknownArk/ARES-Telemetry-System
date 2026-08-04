@@ -186,12 +186,8 @@ def update_mission(
     db_mission = db.query(DBMission).filter(DBMission.id == mission_id).first()
     if not db_mission:
         raise HTTPException(status_code=404, detail="Mission not found")
-    db_mission.name = mission.name
-    db_mission.target_destination = mission.target_destination
-    db_mission.launch_date = mission.launch_date
-    db_mission.spacecraft_id = mission.spacecraft_id
-    db_mission.status = mission.status
-    db_mission.objective = mission.objective
+    for key, value in mission.model_dump().items():
+        setattr(db_mission, key, value)
 
     try:
         db.commit()

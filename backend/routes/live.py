@@ -34,8 +34,6 @@ def fetch_live_iss():
         }
 
 
-
-
 # --- AI Flight Director ---
 @router.post("/live/iss/analyze")
 def analyze_live_iss(request: Request):
@@ -56,7 +54,9 @@ def analyze_live_iss(request: Request):
         redis_client.expire(rate_limit_key, 60)
 
     if requests_made > 3:
-        raise HTTPException(status_code=429, detail="Rate limit exceeded. Please wait 1 minute.")
+        raise HTTPException(
+            status_code=429, detail="Rate limit exceeded. Please wait 1 minute."
+        )
 
     print("System: Redis Cache Miss. Querying Gemini API...")
 
@@ -75,18 +75,22 @@ def analyze_live_iss(request: Request):
     try:
         from google import genai
         import os
-        
+
         # Instantiate locally to avoid Uvicorn thread/event-loop dropped connections
         client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         response = client.models.generate_content(
             model="gemini-flash-latest",
             contents=prompt,
         )
-        redis_client.setex("mission:iss:ai_report", 900, response.text)  # 900=15 min
-        return {"report": response.text, "cached": False}
+        report_text = response.text or "Analysis failed: No text generated."
+        redis_client.setex("mission:iss:ai_report", 900, report_text)  # 900=15 min
+        return {"report": report_text, "cached": False}
     except Exception as e:
         error_msg = str(e)
         print(f"--- AI EXECUTION FAILURE ---\n{error_msg}\n----------------------")
         if "429" in error_msg or "RESOURCE_EXHAUSTED" in error_msg:
-            raise HTTPException(status_code=429, detail="AI Rate Limit Exceeded. Please wait 15 seconds.")
+            raise HTTPException(
+                status_code=429,
+                detail="AI Rate Limit Exceeded. Please wait 15 seconds.",
+            )
         raise HTTPException(status_code=500, detail="AI Diagnostics failed.")
