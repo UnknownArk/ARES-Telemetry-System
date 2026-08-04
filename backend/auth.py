@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordBearer
 from dotenv import load_dotenv
 
 load_dotenv()
-SECRET_KEY = os.getenv("SECRET_KEY")
+SECRET_KEY: str = os.getenv("SECRET_KEY", "")
 if not SECRET_KEY:
     raise RuntimeError("FATAL: SECRET_KEY environment variable is not set!")
 ALGORITHM = "HS256"
@@ -31,8 +31,8 @@ def verify_admin(token: str = Depends(oauth2_scheme)):
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        role: str = payload.get("role")
-        if role != "admin":
+        role = payload.get("role")
+        if not isinstance(role, str) or role != "admin":
             raise credentials_exception
         return payload
     except jwt.ExpiredSignatureError:

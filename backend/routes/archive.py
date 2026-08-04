@@ -77,7 +77,7 @@ def get_all_missions(
                 DBMission.name.ilike(f"%{search}%"),
                 DBMission.objective.ilike(f"%{search}%"),
                 DBMission.target_destination.ilike(f"%{search}%"),
-                Agency.name.ilike(f"%{search}%")
+                Agency.name.ilike(f"%{search}%"),
             )
         )
     if status:
@@ -85,11 +85,11 @@ def get_all_missions(
     if agency:
         query = query.filter(Agency.name.ilike(f"%{agency}%"))
     if year:
-        query = query.filter(extract('year', DBMission.launch_date) == year)
-    
+        query = query.filter(extract("year", DBMission.launch_date) == year)
+
     query = query.order_by(DBMission.launch_date.desc().nulls_last())
     missions = query.limit(limit).all()
-    
+
     result = []
     for m in missions:
         m_dict = {
@@ -102,10 +102,12 @@ def get_all_missions(
             "objective": m.objective,
             "image_url": m.image_url,
             "source_url": m.source_url,
-            "agency_name": m.spacecraft.agency.name if m.spacecraft and m.spacecraft.agency else "Unknown Agency"
+            "agency_name": m.spacecraft.agency.name
+            if m.spacecraft and m.spacecraft.agency
+            else "Unknown Agency",
         }
         result.append(m_dict)
-    
+
     return {"missions": result}
 
 
@@ -118,18 +120,18 @@ def get_mission(mission_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/missions/{mission_id}/telemetry")
-def get_telemetry(mission_id: int, limit: int = 10, anomaly_only: bool = False, db: Session = Depends(get_db)):
+def get_telemetry(
+    mission_id: int,
+    limit: int = 10,
+    anomaly_only: bool = False,
+    db: Session = Depends(get_db),
+):
     query = db.query(TelemetryLog).filter(TelemetryLog.mission_id == mission_id)
-    
+
     if anomaly_only:
-        query = query.filter(TelemetryLog.status_level != 'Nominal')
-        
-    telemetry_data = (
-        query
-        .order_by(TelemetryLog.timestamp.desc())
-        .limit(limit)
-        .all()
-    )
+        query = query.filter(TelemetryLog.status_level != "Nominal")
+
+    telemetry_data = query.order_by(TelemetryLog.timestamp.desc()).limit(limit).all()
     return {"telemetry": telemetry_data}
 
 
@@ -152,11 +154,10 @@ def get_all_spacecrafts(db: Session = Depends(get_db)):
 
 
 # --- PROTECTED ADMIN ROUTES ---
-@router.post("/missions")
+@router.post("/missions", dependencies=[Depends(verify_admin)])
 def create_mission(
     mission: MissionCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(verify_admin),
 ):
     new_mission = DBMission(
         name=mission.name,
@@ -176,12 +177,11 @@ def create_mission(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.put("/missions/{mission_id}")
+@router.put("/missions/{mission_id}", dependencies=[Depends(verify_admin)])
 def update_mission(
     mission_id: int,
     mission: MissionCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(verify_admin),
 ):
     db_mission = db.query(DBMission).filter(DBMission.id == mission_id).first()
     if not db_mission:
@@ -201,9 +201,9 @@ def update_mission(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/missions/{mission_id}")
+@router.delete("/missions/{mission_id}", dependencies=[Depends(verify_admin)])
 def delete_mission(
-    mission_id: int, db: Session = Depends(get_db), admin: dict = Depends(verify_admin)
+    mission_id: int, db: Session = Depends(get_db)
 ):
     db_mission = db.query(DBMission).filter(DBMission.id == mission_id).first()
     if not db_mission:
@@ -217,12 +217,11 @@ def delete_mission(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/missions/{mission_id}/crew")
+@router.post("/missions/{mission_id}/crew", dependencies=[Depends(verify_admin)])
 def add_crew_member(
     mission_id: int,
     scientist: ScientistCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(verify_admin),
 ):
     new_scientist = Scientist(
         name=scientist.name,
@@ -245,11 +244,10 @@ def add_crew_member(
         )
 
 
-@router.post("/agencies")
+@router.post("/agencies", dependencies=[Depends(verify_admin)])
 def create_agency(
     agency: AgencyCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(verify_admin),
 ):
     new_agency = Agency(
         name=agency.name, country=agency.country, description=agency.description
@@ -264,11 +262,10 @@ def create_agency(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/spacecraft")
+@router.post("/spacecraft", dependencies=[Depends(verify_admin)])
 def create_spacecraft(
     spacecraft: SpacecraftCreate,
     db: Session = Depends(get_db),
-    admin: dict = Depends(verify_admin),
 ):
     new_spacecraft = Spacecraft(
         name=spacecraft.name,
