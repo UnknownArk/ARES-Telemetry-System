@@ -98,7 +98,7 @@ def get_all_missions(
             "name": m.name,
             "target_destination": m.target_destination,
             "status": m.status,
-            "launch_date": str(m.launch_date) if m.launch_date else None,
+            "launch_date": str(m.launch_date) if m.launch_date is not None else None,
             "objective": m.objective,
             "image_url": m.image_url,
             "source_url": m.source_url,
