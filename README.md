@@ -191,7 +191,7 @@ POST /telemetry/stream      in-memory list             runs every 5 sec
                                                       │ clears   │
                                                       └────┬─────┘
                                                            │
-                                                    bulk_insert_mappings()
+                                                    execute(insert())
                                                            │
                                                            ▼
                                                     ┌──────────┐

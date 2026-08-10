@@ -8,7 +8,7 @@
 **The Solution (Data Flow):**
 1. **Stream:** Clients stream high-frequency data to a FastAPI endpoint.
 2. **Buffer:** Instead of writing to Postgres, FastAPI pushes the data directly into a **Redis List** (`telemetry_buffer`) using an O(1) append operation. 
-3. **Flush & Analyze:** An administrator securely triggers a "flush". FastAPI pulls everything out of Redis, summarizes anomaly labels (counting Nominal/Warning/Critical statuses, extracting the primary risk), and executes an **optimized bulk insert** into Postgres in a single transaction.
+3. **Flush & Analyze:** A background worker running automatically within FastAPI periodically triggers a "flush". It pulls everything out of Redis, summarizes anomaly labels (counting Nominal/Warning/Critical statuses, extracting the primary risk), and executes an **optimized SQLAlchemy insert** into Postgres in a single transaction.
 
 *Why this architecture:* It demonstrates a scalable decoupling layer frequently used in production systems to mitigate database locking under extreme write loads, while pushing summary aggregation to the ingestion phase.
 

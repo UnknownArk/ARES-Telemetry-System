@@ -24,10 +24,10 @@ When a user views historical missions on the frontend:
 The system must handle high-frequency live telemetry without overwhelming the primary database.
 1. The frontend (`LiveTracking.jsx`) polls `GET /live/iss/telemetry` every 5 seconds.
 2. The backend fetches raw coordinates from the public **Where The ISS At** API.
-3. Simultaneously, any telemetry streamed via `POST /telemetry/stream` (e.g., from a simulation script) is caught by the backend.
+3. Simultaneously, any telemetry streamed via `POST /telemetry/stream` (e.g., from a simulation script or the Auto-Fire UI) is caught by the backend.
 4. Instead of writing directly to PostgreSQL, the backend pushes payloads into a **Redis List** (`telemetry_buffer`) using `O(1)` list appends.
-5. The `SimulationConsole.jsx` UI polls `GET /telemetry/buffer/status` to monitor the queue length in real-time.
-6. An administrator manually triggers `POST /telemetry/flush`. The backend pops all records from Redis, summarizes them by anomaly labels (Warning/Critical statuses), calculates a primary risk factor, and executes an optimized bulk-insert into PostgreSQL. This prevents write-locking and DB saturation during high-throughput events, while simultaneously generating a Mission Health Summary.
+5. The backend runs an `asyncio.to_thread` **Background Worker** that wakes up every 5 seconds. It safely reads all records from Redis using `lrange`, summarizes them by anomaly labels (Warning/Critical statuses), calculates a primary risk factor, executes an optimized SQLAlchemy insert into PostgreSQL, and then removes the processed records using `ltrim`. This decoupling prevents write-locking and DB saturation during high-throughput events.
+6. The background worker immediately broadcasts the Mission Health Summary and live throughput metrics back to the frontend via **WebSockets**, creating a seamless, real-time dashboard without polling overhead.
 
 ## 4. Authentication Flow
 
@@ -36,6 +36,8 @@ A.R.E.S. uses stateless JWT (JSON Web Tokens) for security.
 2. Backend verifies credentials against environment variables (or DB in a larger deployment).
 3. A JWT token is generated (signed with `SECRET_KEY`) and returned to the client.
 4. The client stores the JWT in `localStorage` and attaches it as a Bearer token in the `Authorization` header for all protected requests (e.g., flushing telemetry, modifying databases).
+
+*(Note: The live telemetry WebSocket broadcast is intentionally left unauthenticated so public dashboard clients can view aggregated health metrics. Only commands that mutate data, like the telemetry ingestion and manual flushes, are protected).*
 
 ## 5. AI Cache & Rate-Limit Flow
 
