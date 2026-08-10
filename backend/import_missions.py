@@ -8,6 +8,7 @@ import datetime
 TARGET_LIMIT = 150
 LL_API_URL = "https://ll.thespacedevs.com/2.2.0/launch/?limit=30&ordering=-net"
 
+
 def sync_missions():
     db: Session = SessionLocal()
     count = 0
@@ -15,7 +16,7 @@ def sync_missions():
     next_url = LL_API_URL
 
     print(f"Fetching up to {TARGET_LIMIT} missions from Launch Library API...")
-    
+
     while next_url and fetched_count < TARGET_LIMIT:
         print(f"Fetching from {next_url} ...")
         try:
@@ -27,17 +28,17 @@ def sync_missions():
             sys.exit(1)
 
         next_url = data.get("next")
-        
+
         for launch in data.get("results", []):
             if fetched_count >= TARGET_LIMIT:
                 break
-            
+
             fetched_count += 1
-            
+
             # 1. Agency
             provider = launch.get("launch_service_provider")
             agency_name = provider.get("name") if provider else "Unknown Agency"
-            
+
             agency = db.query(Agency).filter(Agency.name == agency_name).first()
             if not agency:
                 agency = Agency(name=agency_name, country="Unknown")
@@ -48,13 +49,15 @@ def sync_missions():
             # 2. Spacecraft (Rocket)
             rocket = launch.get("rocket", {}).get("configuration", {})
             rocket_name = rocket.get("name", "Unknown Rocket")
-            
-            spacecraft = db.query(Spacecraft).filter(Spacecraft.name == rocket_name).first()
+
+            spacecraft = (
+                db.query(Spacecraft).filter(Spacecraft.name == rocket_name).first()
+            )
             if not spacecraft:
                 spacecraft = Spacecraft(
-                    name=rocket_name, 
-                    classification="Launch Vehicle", 
-                    agency_id=agency.id
+                    name=rocket_name,
+                    classification="Launch Vehicle",
+                    agency_id=agency.id,
                 )
                 db.add(spacecraft)
                 db.commit()
@@ -62,12 +65,18 @@ def sync_missions():
 
             # 3. Mission
             ext_id = launch.get("id")
-            existing_mission = db.query(Mission).filter(Mission.external_id == ext_id).first()
+            existing_mission = (
+                db.query(Mission).filter(Mission.external_id == ext_id).first()
+            )
             if existing_mission:
                 continue
 
             mission_data = launch.get("mission")
-            objective = mission_data.get("description") if mission_data else "No description available."
+            objective = (
+                mission_data.get("description")
+                if mission_data
+                else "No description available."
+            )
             orbit = mission_data.get("orbit", {}).get("name") if mission_data else "LEO"
             if not orbit:
                 orbit = "Unknown Orbit"
@@ -77,10 +86,12 @@ def sync_missions():
             launch_date = None
             if net_date_str:
                 try:
-                    launch_date = datetime.datetime.strptime(net_date_str[:10], "%Y-%m-%d").date()
+                    launch_date = datetime.datetime.strptime(
+                        net_date_str[:10], "%Y-%m-%d"
+                    ).date()
                 except ValueError:
                     pass
-                    
+
             status_name = launch.get("status", {}).get("name", "Unknown")
 
             new_mission = Mission(
@@ -92,11 +103,11 @@ def sync_missions():
                 objective=objective,
                 image_url=launch.get("image"),
                 source_url=launch.get("url"),
-                spacecraft_id=spacecraft.id
+                spacecraft_id=spacecraft.id,
             )
             db.add(new_mission)
             count += 1
-            
+
             # Commit periodically
             if count % 30 == 0:
                 db.commit()
@@ -110,6 +121,7 @@ def sync_missions():
         sys.exit(1)
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     sync_missions()

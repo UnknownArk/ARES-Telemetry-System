@@ -8,6 +8,7 @@ from auth import verify_admin
 from models import TelemetryLog
 from collections import Counter
 from database import SessionLocal
+from sqlalchemy import insert
 
 router = APIRouter()
 
@@ -53,8 +54,8 @@ class TelemetryPayload(BaseModel):
 # -- high freq pipelines --
 
 
-@router.get("/telemetry/buffer/status")
-def get_buffer_status(admin: dict = Depends(verify_admin)):
+@router.get("/telemetry/buffer/status", dependencies=[Depends(verify_admin)])
+def get_buffer_status():
     if not redis_client:
         return {"status": "offline", "count": 0}
     try:
@@ -64,9 +65,9 @@ def get_buffer_status(admin: dict = Depends(verify_admin)):
         return {"status": "error", "count": 0, "detail": str(e)}
 
 
-@router.post("/telemetry/stream")
+@router.post("/telemetry/stream", dependencies=[Depends(verify_admin)])
 def ingest_telemetry_stream(
-    payload: TelemetryPayload, admin: dict = Depends(verify_admin)
+    payload: TelemetryPayload,
 ):
     if not redis_client:
         raise HTTPException(status_code=500, detail="Redis offline.")
@@ -115,7 +116,7 @@ def process_telemetry_batch():
             if status in ["Warning", "Critical"]:
                 risk_params[data["parameter_name"]] += 1
 
-        db.bulk_insert_mappings(TelemetryLog, mappings)
+        db.execute(insert(TelemetryLog), mappings)
         db.commit()
         # Remove only the items read before this flush; records appended during the flush remain queued.
         redis_client.ltrim("telemetry_buffer", len(raw_data), -1)
@@ -138,10 +139,8 @@ def process_telemetry_batch():
         if redis_client.get(lock_key) == lock_token:
             redis_client.delete(lock_key)
 
-@router.post("/telemetry/flush")
-def flush_telemetry_buffer(
-    admin: dict = Depends(verify_admin)
-):
+@router.post("/telemetry/flush", dependencies=[Depends(verify_admin)])
+def flush_telemetry_buffer():
     result = process_telemetry_batch()
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])

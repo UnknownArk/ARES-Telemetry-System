@@ -26,8 +26,10 @@ async def run_telemetry_worker():
             # Run the synchronous flush batch in a thread so it doesn't block the async event loop
             result = await asyncio.to_thread(process_telemetry_batch)
             # If records were flushed, broadcast the report to all UI WebSocket clients
-            if result and "flushed" in result and result["flushed"] > 0:
-                await manager.broadcast(result)
+            if isinstance(result, dict):
+                flushed = result.get("flushed")
+                if isinstance(flushed, int) and flushed > 0:
+                    await manager.broadcast(result)
         except asyncio.CancelledError:
             break
         except Exception as e:
