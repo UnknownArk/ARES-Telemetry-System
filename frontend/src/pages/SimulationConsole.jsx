@@ -9,7 +9,7 @@ export default function SimulationConsole() {
   const [missionId, setMissionId] = useState('1');
   const missionIdRef = useRef('1');
   const [isStreaming, setIsStreaming] = useState(false);
-  const [simulationInterval, setSimulationInterval] = useState(null);
+  const simulationIntervalRef = useRef(null);
   const [bufferCount, setBufferCount] = useState(0);
   const [bufferStatus, setBufferStatus] = useState('online');
   const [recentTelemetry, setRecentTelemetry] = useState([]);
@@ -130,9 +130,9 @@ export default function SimulationConsole() {
 
   const toggleSimulation = (event) => {
     event.preventDefault();
-    if (simulationInterval) {
-      clearInterval(simulationInterval);
-      setSimulationInterval(null);
+    if (simulationIntervalRef.current) {
+      clearInterval(simulationIntervalRef.current);
+      simulationIntervalRef.current = null;
       setIsStreaming(false);
       toast.success("Simulation Stopped.");
     } else {
@@ -162,15 +162,15 @@ export default function SimulationConsole() {
           setBufferCount(prev => prev + successCount);
         }
       }, 100);
-      setSimulationInterval(id);
+      simulationIntervalRef.current = id;
     }
   };
 
   useEffect(() => {
     return () => {
-      if (simulationInterval) clearInterval(simulationInterval);
+      if (simulationIntervalRef.current) clearInterval(simulationIntervalRef.current);
     };
-  }, [simulationInterval]);
+  }, []);
 
   return (
     <div className="w-full h-full bg-black p-6 md:p-12 overflow-y-auto">
