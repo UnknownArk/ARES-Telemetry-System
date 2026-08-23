@@ -46,3 +46,12 @@ The `POST /live/iss/analyze` endpoint uses Google's Gemini Flash AI to analyze l
 2. **Caching**: If within the rate limit, the backend checks Redis for an existing, unexpired report. If found, the cached report is returned in `O(1)` time.
 3. **AI Generation**: If no cache exists, the backend queries the Gemini API. The response is then saved to Redis with a 15-minute expiration time (`TTL`).
 4. **UI Integration**: The frontend checks the `cached` boolean flag in the response payload and displays a visual `CACHED` badge when applicable.
+
+## 5. Deployment Architecture
+
+A.R.E.S. is designed for easy deployment to cloud infrastructure:
+1. **AWS EC2:** Deployed on an Ubuntu server (t3.micro/t2.micro) with an allocated Elastic IP.
+2. **Docker Compose:** The entire stack is defined in docker-compose.yml, which provisions the network, spins up the Nginx frontend (port 80), FastAPI backend (port 8000), PostgreSQL (port 5432), and Redis (port 6379) containers.
+3. **Network Security:** AWS Security Groups are configured to only allow inbound HTTP (80), HTTPS (443), Custom TCP (8000 for the backend API), and SSH (22) traffic from specified sources.
+4. **Environment Variables:** Credentials, API keys (Gemini), and the backend URL (VITE_API_URL) are injected via .env files and Docker build arguments at runtime.
+

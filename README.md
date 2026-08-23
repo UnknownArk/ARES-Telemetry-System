@@ -2,7 +2,7 @@
 
 > FastAPI + React telemetry system demonstrating Redis-buffered ingestion, Postgres persistence, JWT-protected admin operations, and a public mission archive.
 
-**Live Deployment:** [http://44.213.125.209](http://44.213.125.209)
+**Live Deployment:** [http://52.87.252.183](http://52.87.252.183)
 
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
 ![React](https://img.shields.io/badge/React_19-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
