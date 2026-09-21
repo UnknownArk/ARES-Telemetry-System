@@ -47,11 +47,12 @@ The `POST /live/iss/analyze` endpoint uses Google's Gemini Flash AI to analyze l
 3. **AI Generation**: If no cache exists, the backend queries the Gemini API. The response is then saved to Redis with a 15-minute expiration time (`TTL`).
 4. **UI Integration**: The frontend checks the `cached` boolean flag in the response payload and displays a visual `CACHED` badge when applicable.
 
-## 5. Deployment Architecture
+## 6. Deployment Architecture
 
 A.R.E.S. is designed for easy deployment to cloud infrastructure:
-1. **AWS EC2:** Deployed on an Ubuntu server (t3.micro/t2.micro) with an allocated Elastic IP.
-2. **Docker Compose:** The entire stack is defined in docker-compose.yml, which provisions the network, spins up the Nginx frontend (port 80), FastAPI backend (port 8000), PostgreSQL (port 5432), and Redis (port 6379) containers.
-3. **Network Security:** AWS Security Groups are configured to only allow inbound HTTP (80), HTTPS (443), Custom TCP (8000 for the backend API), and SSH (22) traffic from specified sources.
-4. **Environment Variables:** Credentials, API keys (Gemini), and the backend URL (VITE_API_URL) are injected via .env files and Docker build arguments at runtime.
+1. **AWS EC2:** Deployed on an Ubuntu server with a static IP and a custom domain via DuckDNS (`ares-telemetry.duckdns.org`).
+2. **Reverse Proxy & SSL:** Traffic is routed through a host-level Nginx reverse proxy secured by Let's Encrypt SSL/TLS certificates, ensuring end-to-end encryption.
+3. **Docker Compose:** The core stack is defined in `docker-compose.yml`, spinning up the React frontend, FastAPI backend, PostgreSQL database, and Redis cache in an isolated bridge network.
+4. **Network Security:** AWS Security Groups allow inbound HTTPS (443), HTTP (80 for redirects), Custom TCP (8000 for backend API), and SSH (22).
+5. **Environment Variables:** Secrets (Gemini API keys, JWT keys, DB passwords) are injected securely via `.env` files.
 
