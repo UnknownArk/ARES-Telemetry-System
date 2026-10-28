@@ -63,7 +63,15 @@ export default function SimulationConsole() {
 
   // WebSocket Connection
   useEffect(() => {
-    const wsUrl = API_URL.replace('http', 'ws') + '/ws/telemetry';
+    const getWsUrl = () => {
+      if (API_URL.startsWith('http://') || API_URL.startsWith('https://')) {
+        return API_URL.replace(/^http/, 'ws').replace(/\/api$/, '') + '/ws/telemetry';
+      }
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${protocol}//${window.location.host}/ws/telemetry`;
+    };
+
+    const wsUrl = getWsUrl();
     const ws = new WebSocket(wsUrl);
     
     ws.onmessage = (event) => {
