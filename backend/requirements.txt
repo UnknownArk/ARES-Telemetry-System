@@ -2,6 +2,7 @@ fastapi[standard]
 uvicorn
 sqlalchemy
 psycopg2-binary
+psycopg[binary]
 redis
 python-dotenv
 pyjwt
